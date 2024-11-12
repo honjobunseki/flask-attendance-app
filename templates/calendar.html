@@ -13,16 +13,25 @@
             height: 100px;
             text-align: center;
             vertical-align: top;
-            border: 1px solid #ddd;
-            padding: 10px;
+            border: 1px solid #ddd !important;
+            padding: 10px !important;
+        }
+        th {
+            background-color: #f2f2f2 !important;
         }
         .holiday {
-            background-color: red;
-            color: white;
+            background-color: red !important;
+            color: white !important;
         }
         .today {
-            border: 3px solid blue;
-            background-color: lightyellow;
+            border: 5px solid blue !important;
+            background-color: lightyellow !important;
+            font-weight: bold !important;
+        }
+        .status {
+            font-size: 1em !important;
+            color: #333 !important;
+            margin-top: 5px !important;
         }
     </style>
 </head>
@@ -42,10 +51,13 @@
         {% for week in calendar_rows %}
         <tr>
             {% for day in week %}
-            <td class="{{ 'holiday' if day.is_holiday else '' }} {{ 'today' if day.is_today else '' }}">
+            <td class="{% if day.is_holiday %}holiday{% endif %} {% if day.is_today %}today{% endif %}">
                 <div>{{ day.day }}</div>
+                {% if day.is_today %}
+                    <div>（今日です）</div>  <!-- デバッグ用の表示 -->
+                {% endif %}
                 {% if day.status %}
-                    <div>{{ day.status }}</div>
+                    <div class="status">{{ day.status }}</div>
                 {% endif %}
             </td>
             {% endfor %}
