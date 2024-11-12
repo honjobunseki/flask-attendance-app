@@ -2,48 +2,21 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>休業日・遅刻・早退管理</title>
+    <title>管理ページ</title>
 </head>
 <body>
-    <h2>休業日・遅刻・早退の管理</h2>
-    <a href="{{ url_for('logout') }}">ログアウト</a>
+    <h1>休業日、遅刻・早退日時の設定</h1>
+    <form method="POST" action="/manage">
+        <label for="holiday_date">休業日:</label>
+        <input type="date" id="holiday_date" name="holiday_date"><br><br>
 
-    <h3>休業日追加</h3>
-    <form action="{{ url_for('add_holiday') }}" method="post">
-        <label>日付: <input type="date" name="date"></label>
-        <button type="submit">追加</button>
-    </form>
+        <label for="late_arrival_time">遅刻時刻:</label>
+        <input type="time" id="late_arrival_time" name="late_arrival_time"><br><br>
 
-    <h3>早退時間追加</h3>
-    <form action="{{ url_for('add_early_leaving') }}" method="post">
-        <label>日付: <input type="date" name="date"></label>
-        <label>時刻: <input type="time" name="time"></label>
-        <button type="submit">追加</button>
-    </form>
+        <label for="early_leaving_time">早退時刻:</label>
+        <input type="time" id="early_leaving_time" name="early_leaving_time"><br><br>
 
-    <h3>遅刻時間追加</h3>
-    <form action="{{ url_for('add_late_arrival') }}" method="post">
-        <label>日付: <input type="date" name="date"></label>
-        <label>時刻: <input type="time" name="time"></label>
-        <button type="submit">追加</button>
-    </form>
-
-    <h3>休業日削除</h3>
-    <form action="{{ url_for('delete_holiday') }}" method="post">
-        <label>日付: <input type="date" name="date"></label>
-        <button type="submit">削除</button>
-    </form>
-
-    <h3>早退時間削除</h3>
-    <form action="{{ url_for('delete_early_leaving') }}" method="post">
-        <label>日付: <input type="date" name="date"></label>
-        <button type="submit">削除</button>
-    </form>
-
-    <h3>遅刻時間削除</h3>
-    <form action="{{ url_for('delete_late_arrival') }}" method="post">
-        <label>日付: <input type="date" name="date"></label>
-        <button type="submit">削除</button>
+        <button type="submit">保存</button>
     </form>
 </body>
 </html>
