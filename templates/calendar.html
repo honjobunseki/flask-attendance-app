@@ -13,25 +13,25 @@
             height: 100px;
             text-align: center;
             vertical-align: top;
-            border: 1px solid #ddd !important;
-            padding: 10px !important;
+            border: 1px solid #ddd;
+            padding: 10px;
         }
         th {
-            background-color: #f2f2f2 !important;
+            background-color: #f2f2f2;
         }
         .holiday {
-            background-color: red !important;
-            color: white !important;
+            background-color: red;
+            color: white;
         }
         .today {
-            border: 5px solid blue !important;
-            background-color: lightyellow !important;
-            font-weight: bold !important;
+            border: 3px solid blue;
+            background-color: lightyellow;
+            font-weight: bold;
         }
         .status {
-            font-size: 1em !important;
-            color: #333 !important;
-            margin-top: 5px !important;
+            font-size: 1em;
+            color: black; /* 黒文字に設定 */
+            margin-top: 5px;
         }
     </style>
 </head>
@@ -53,10 +53,7 @@
             {% for day in week %}
             <td class="{% if day.is_holiday %}holiday{% endif %} {% if day.is_today %}today{% endif %}">
                 <div>{{ day.day }}</div>
-                {% if day.is_today %}
-                    <div>（今日です）</div>  <!-- デバッグ用の表示 -->
-                {% endif %}
-                {% if day.status %}
+                {% if day.status == "出勤中" %}
                     <div class="status">{{ day.status }}</div>
                 {% endif %}
             </td>
