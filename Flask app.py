@@ -14,7 +14,7 @@ def get_calendar(year, month):
     """指定された年月のカレンダーを生成し、休業日や早退・遅刻を表示"""
     cal = calendar.monthcalendar(year, month)
     month_days = []
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    today_date = datetime.now().date()  # 今日の日付を取得
 
     for week in cal:
         week_days = []
@@ -22,11 +22,11 @@ def get_calendar(year, month):
             if day == 0:
                 week_days.append({"day": "", "is_holiday": False, "early_leave": False, "late_arrival": False, "is_today": False, "status": ""})
             else:
-                date_str = f"{year}-{month:02d}-{day:02d}"
-                is_holiday = calendar.weekday(year, month, day) >= 5 or date_str in holidays
-                early_leave = date_str in early_leave_times
-                late_arrival = date_str in late_arrival_times
-                is_today = (date_str == today_str)
+                date_obj = datetime(year, month, day).date()
+                is_holiday = calendar.weekday(year, month, day) >= 5 or date_obj.strftime("%Y-%m-%d") in holidays
+                early_leave = date_obj.strftime("%Y-%m-%d") in early_leave_times
+                late_arrival = date_obj.strftime("%Y-%m-%d") in late_arrival_times
+                is_today = (date_obj == today_date)
                 
                 # 「出勤中」のステータス設定
                 status = "出勤中" if is_today and not is_holiday and not early_leave and not late_arrival else ""
