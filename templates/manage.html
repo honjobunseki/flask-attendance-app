@@ -12,11 +12,6 @@
         <label>日付 (YYYY-MM-DD): <input type="date" name="holiday_date"></label>
         <button type="submit">追加</button>
     </form>
-    <ul>
-        {% for holiday in holidays %}
-            <li>{{ holiday }}</li>
-        {% endfor %}
-    </ul>
 
     <form method="post">
         <h2>早退時間追加</h2>
@@ -24,11 +19,6 @@
         <label>時間 (HH:MM): <input type="time" name="early_leave_time"></label>
         <button type="submit">追加</button>
     </form>
-    <ul>
-        {% for date, time in early_leave_times.items() %}
-            <li>{{ date }} - {{ time }}</li>
-        {% endfor %}
-    </ul>
 
     <form method="post">
         <h2>遅刻時間追加</h2>
@@ -36,11 +26,6 @@
         <label>時間 (HH:MM): <input type="time" name="late_arrival_time"></label>
         <button type="submit">追加</button>
     </form>
-    <ul>
-        {% for date, time in late_arrival_times.items() %}
-            <li>{{ date }} - {{ time }}</li>
-        {% endfor %}
-    </ul>
 
     <a href="{{ url_for('logout') }}">ログアウト</a>
 </body>
