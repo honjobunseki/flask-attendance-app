@@ -1,18 +1,22 @@
 from flask import Flask, render_template
-from datetime import datetime
+from datetime import datetime, time
 import calendar
 
 app = Flask(__name__)
 
-# サンプルの休業日、早退、遅刻データ
+# 休業日、早退、遅刻のデータ
 holidays = ["2024-11-23", "2024-12-25"]
-early_leave_times = {"2024-11-14": "15:00"}
-late_arrival_times = {"2024-11-14": "10:00"}
+early_leave_times = {"2024-11-14": "16:00"}
+late_arrival_times = {"2024-11-14": "10:30"}
+
+# 出勤・退勤のデフォルト時間
+DEFAULT_START_TIME = time(9, 30)
+DEFAULT_END_TIME = time(17, 30)
 
 @app.route('/')
 def calendar_view():
-    # 今日の日付と現在の年月を取得
     today = datetime.now().date()
+    current_time = datetime.now().time()
     year = today.year
     month = today.month
     
@@ -32,12 +36,18 @@ def calendar_view():
         # 状態のメッセージ
         status = ""
         if is_today:
-            if not is_holiday and not early_leave and not late_arrival:
+            if is_holiday:
+                status = "休業日"
+            elif late_arrival and current_time < time.fromisoformat(late_arrival):
+                status = f"{late_arrival}出勤予定"
+            elif early_leave and current_time >= time.fromisoformat(early_leave):
+                status = "早退"
+            elif early_leave and current_time < time.fromisoformat(early_leave):
+                status = f"{early_leave}早退予定"
+            elif DEFAULT_START_TIME <= current_time <= DEFAULT_END_TIME:
                 status = "出勤中"
-            elif early_leave:
-                status = f"早退: {early_leave}"
-            elif late_arrival:
-                status = f"遅刻: {late_arrival}"
+            else:
+                status = "退勤時間外"
 
         month_days.append({"day": day, "is_today": is_today, "is_holiday": is_holiday, "status": status})
 
