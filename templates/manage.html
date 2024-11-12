@@ -5,18 +5,43 @@
     <title>管理ページ</title>
 </head>
 <body>
-    <h1>休業日、遅刻・早退日時の設定</h1>
-    <form method="POST" action="/manage">
-        <label for="holiday_date">休業日:</label>
-        <input type="date" id="holiday_date" name="holiday_date"><br><br>
+    <h1>休業日と勤務時間設定</h1>
 
-        <label for="late_arrival_time">遅刻時刻:</label>
-        <input type="time" id="late_arrival_time" name="late_arrival_time"><br><br>
-
-        <label for="early_leaving_time">早退時刻:</label>
-        <input type="time" id="early_leaving_time" name="early_leaving_time"><br><br>
-
-        <button type="submit">保存</button>
+    <form method="post">
+        <h2>休業日追加</h2>
+        <label>日付 (YYYY-MM-DD): <input type="date" name="holiday_date"></label>
+        <button type="submit">追加</button>
     </form>
+    <ul>
+        {% for holiday in holidays %}
+            <li>{{ holiday }}</li>
+        {% endfor %}
+    </ul>
+
+    <form method="post">
+        <h2>早退時間追加</h2>
+        <label>日付 (YYYY-MM-DD): <input type="date" name="early_leave_date"></label>
+        <label>時間 (HH:MM): <input type="time" name="early_leave_time"></label>
+        <button type="submit">追加</button>
+    </form>
+    <ul>
+        {% for date, time in early_leave_times.items() %}
+            <li>{{ date }} - {{ time }}</li>
+        {% endfor %}
+    </ul>
+
+    <form method="post">
+        <h2>遅刻時間追加</h2>
+        <label>日付 (YYYY-MM-DD): <input type="date" name="late_arrival_date"></label>
+        <label>時間 (HH:MM): <input type="time" name="late_arrival_time"></label>
+        <button type="submit">追加</button>
+    </form>
+    <ul>
+        {% for date, time in late_arrival_times.items() %}
+            <li>{{ date }} - {{ time }}</li>
+        {% endfor %}
+    </ul>
+
+    <a href="{{ url_for('logout') }}">ログアウト</a>
 </body>
 </html>
