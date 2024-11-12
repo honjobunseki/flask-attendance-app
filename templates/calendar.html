@@ -12,8 +12,11 @@
             border: 1px solid black;
         }
         th, td {
-            padding: 10px;
+            padding: 20px;
             text-align: center;
+            vertical-align: top;
+            height: 100px;
+            width: 100px;
         }
         th {
             background-color: #f2f2f2;
@@ -24,6 +27,12 @@
         }
         .today {
             background-color: lightgreen;
+            font-weight: bold;
+            position: relative;
+        }
+        .status-text {
+            margin-top: 5px;
+            font-size: 0.9em;
         }
     </style>
 </head>
@@ -44,14 +53,14 @@
         <tr>
             {% for day in week %}
             <td class="{{ 'holiday' if day.is_holiday else '' }} {{ 'today' if day.is_today else '' }}">
-                {{ day.day }}
+                <div>{{ day.day }}</div>
                 {% if day.status %}
-                    <div>{{ day.status }}</div>
+                    <div class="status-text">{{ day.status }}</div>
                 {% endif %}
                 {% if day.early_leave %}
-                    <div>早退: {{ early_leave_times[day.day | string] }}</div>
+                    <div class="status-text">早退: {{ early_leave_times[day.day | string] }}</div>
                 {% elif day.late_arrival %}
-                    <div>遅刻: {{ late_arrival_times[day.day | string] }}</div>
+                    <div class="status-text">遅刻: {{ late_arrival_times[day.day | string] }}</div>
                 {% endif %}
             </td>
             {% endfor %}
