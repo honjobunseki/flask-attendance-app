@@ -1,9 +1,8 @@
-from flask import Flask, render_template, session, redirect, url_for, request
+from flask import Flask, render_template
 from datetime import datetime
 import calendar
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'
 
 # サンプルの休業日、早退、遅刻データ
 holidays = ["2024-11-23", "2024-12-25"]

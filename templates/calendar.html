@@ -53,9 +53,7 @@
             {% for day in week %}
             <td class="{% if day.is_holiday %}holiday{% endif %} {% if day.is_today %}today{% endif %}">
                 <div>{{ day.day }}</div>
-                {% if day.status == "出勤中" %}
-                    <div class="status">{{ day.status }}</div>
-                {% elif day.status %}
+                {% if day.status %}
                     <div class="status">{{ day.status }}</div>
                 {% endif %}
             </td>
