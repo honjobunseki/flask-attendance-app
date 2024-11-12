@@ -30,7 +30,7 @@
         }
         .status {
             font-size: 1em;
-            color: black; /* 黒文字に設定 */
+            color: black;
             margin-top: 5px;
         }
     </style>
@@ -54,6 +54,8 @@
             <td class="{% if day.is_holiday %}holiday{% endif %} {% if day.is_today %}today{% endif %}">
                 <div>{{ day.day }}</div>
                 {% if day.status == "出勤中" %}
+                    <div class="status">{{ day.status }}</div>
+                {% elif day.status %}
                     <div class="status">{{ day.status }}</div>
                 {% endif %}
             </td>
