@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>出勤カレンダー</title>
+    <style>
+        .calendar-container { max-width: 800px; margin: auto; }
+        .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .day, .weekday {
+            padding: 15px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f0f0f0;
+        }
+        .holiday { background-color: #ff7070; color: white; }
+        .early-leaving { background-color: #ffd700; }
+        .late-arrival { background-color: #87CEFA; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .year-month { font-size: 24px; font-weight: bold; }
+        .info { font-size: 0.9em; color: darkblue; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>出勤状況</h1>
+        <div class="year-month">{{ year }}年{{ month }}月</div>
+    </div>
+    <div class="calendar-container">
+        <!-- 曜日のヘッダー -->
+        <div class="calendar">
+            <div class="weekday">月</div>
+            <div class="weekday">火</div>
+            <div class="weekday">水</div>
+            <div class="weekday">木</div>
+            <div class="weekday">金</div>
+            <div class="weekday">土</div>
+            <div class="weekday">日</div>
+
+            <!-- 月の最初の曜日に応じた空白セル -->
+            {% for _ in range(first_weekday) %}
+                <div class="day"></div>
+            {% endfor %}
+
+            <!-- 日ごとのカレンダー -->
+            {% for day in range(1, num_days + 1) %}
+                {% set date_str = year ~ "-" ~ month ~ "-" ~ ("%02d" % day) %}
+                <div class="day {% if date_str in holidays %}holiday{% elif date_str in early_leaving %}early-leaving{% elif date_str in late_arrival %}late-arrival{% endif %}">
+                    <span>{{ day }}日</span>
+                    {% if date_str in late_arrival %}
+                        <div class="info">遅刻: {{ late_arrival[date_str] }}</div>
+                    {% endif %}
+                    {% if date_str in early_leaving %}
+                        <div class="info">早退: {{ early_leaving[date_str] }}</div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</body>
+</html>
