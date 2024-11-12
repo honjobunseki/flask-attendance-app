@@ -27,6 +27,45 @@
         <button type="submit">追加</button>
     </form>
 
+    <h2>休業日一覧</h2>
+    <ul>
+        {% for holiday in holidays %}
+        <li>{{ holiday }}
+            <form action="{{ url_for('delete_entry') }}" method="post" style="display:inline;">
+                <input type="hidden" name="entry_type" value="holiday">
+                <input type="hidden" name="date" value="{{ holiday }}">
+                <button type="submit">削除</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <h2>早退一覧</h2>
+    <ul>
+        {% for date, time in early_leave_times.items() %}
+        <li>{{ date }} - {{ time }}
+            <form action="{{ url_for('delete_entry') }}" method="post" style="display:inline;">
+                <input type="hidden" name="entry_type" value="early_leave">
+                <input type="hidden" name="date" value="{{ date }}">
+                <button type="submit">削除</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <h2>遅刻一覧</h2>
+    <ul>
+        {% for date, time in late_arrival_times.items() %}
+        <li>{{ date }} - {{ time }}
+            <form action="{{ url_for('delete_entry') }}" method="post" style="display:inline;">
+                <input type="hidden" name="entry_type" value="late_arrival">
+                <input type="hidden" name="date" value="{{ date }}">
+                <button type="submit">削除</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+
     <a href="{{ url_for('logout') }}">ログアウト</a>
 </body>
 </html>

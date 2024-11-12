@@ -1,61 +1,48 @@
 from flask import Flask, render_template, request, redirect, url_for, session
-from datetime import datetime, timedelta
+from datetime import datetime
 import calendar
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'
 
-# 初期の休業日、遅刻、早退データ
+# 休業日、早退、遅刻の設定（デフォルト値）
 holidays = ["2024-11-23", "2024-12-25"]
 early_leave_times = {"2024-11-14": "15:00"}
 late_arrival_times = {"2024-11-14": "10:00"}
 
-# 管理者のログイン情報
 ADMIN_USERNAME = "admin"
 ADMIN_PASSWORD = "password"
 
 @app.route('/')
 def calendar_view():
-    # 今日の日付
+    # 今日の日付と現在の年月を取得
     today = datetime.now().date()
-    
-    # 現在の年と月
     year = today.year
     month = today.month
     
-    # 月初めの曜日と日数を取得
+    # カレンダーのデータを作成
     first_weekday, days_in_month = calendar.monthrange(year, month)
-    
-    # カレンダーのデータ生成
     month_days = []
     for day in range(1, days_in_month + 1):
         date_obj = datetime(year, month, day).date()
         date_str = date_obj.strftime("%Y-%m-%d")
         
-        # 各日の状態を判定
-        is_today = date_obj == today
-        is_holiday = date_str in holidays or date_obj.weekday() >= 5
+        # 日付の状態を判定
+        is_today = (date_obj == today)
+        is_holiday = (date_str in holidays) or date_obj.weekday() >= 5
         early_leave = early_leave_times.get(date_str)
         late_arrival = late_arrival_times.get(date_str)
         
-        # 状態メッセージの設定
-        status = ""
-        if is_today and not is_holiday and not early_leave and not late_arrival:
-            status = "出勤中"
-        elif early_leave:
+        # 状態のメッセージ
+        status = "出勤中" if is_today and not is_holiday and not early_leave and not late_arrival else ""
+        if early_leave:
             status = f"早退: {early_leave}"
         elif late_arrival:
             status = f"遅刻: {late_arrival}"
-        
-        # カレンダーの一日をリストに追加
-        month_days.append({
-            "day": day,
-            "is_today": is_today,
-            "is_holiday": is_holiday,
-            "status": status
-        })
-    
-    # 最初の空白を埋めるためのオフセット
+
+        month_days.append({"day": day, "is_today": is_today, "is_holiday": is_holiday, "status": status})
+
+    # カレンダーの構造を整える
     calendar_rows = [[]]
     for _ in range(first_weekday):
         calendar_rows[0].append({"day": "", "is_holiday": False, "status": ""})
@@ -77,19 +64,37 @@ def manage():
         if holiday_date and holiday_date not in holidays:
             holidays.append(holiday_date)
         
-        # 早退時間追加
+        # 早退追加
         early_leave_date = request.form.get('early_leave_date')
         early_leave_time = request.form.get('early_leave_time')
         if early_leave_date and early_leave_time:
             early_leave_times[early_leave_date] = early_leave_time
         
-        # 遅刻時間追加
+        # 遅刻追加
         late_arrival_date = request.form.get('late_arrival_date')
         late_arrival_time = request.form.get('late_arrival_time')
         if late_arrival_date and late_arrival_time:
             late_arrival_times[late_arrival_date] = late_arrival_time
-
+    
+    # 休業日、早退、遅刻の管理ページを表示
     return render_template('manage.html', holidays=holidays, early_leave_times=early_leave_times, late_arrival_times=late_arrival_times)
+
+@app.route('/delete', methods=['POST'])
+def delete_entry():
+    if 'logged_in' not in session:
+        return redirect(url_for('login'))
+
+    entry_type = request.form.get('entry_type')
+    date = request.form.get('date')
+    
+    if entry_type == "holiday" and date in holidays:
+        holidays.remove(date)
+    elif entry_type == "early_leave" and date in early_leave_times:
+        early_leave_times.pop(date)
+    elif entry_type == "late_arrival" and date in late_arrival_times:
+        late_arrival_times.pop(date)
+
+    return redirect(url_for('manage'))
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -105,6 +110,3 @@ def login():
 def logout():
     session.pop('logged_in', None)
     return redirect(url_for('calendar_view'))
-
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
