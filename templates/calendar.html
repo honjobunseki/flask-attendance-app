@@ -22,6 +22,9 @@
             background-color: red;
             color: white;
         }
+        .today {
+            background-color: lightgreen;
+        }
     </style>
 </head>
 <body>
@@ -40,8 +43,16 @@
         {% for week in month_days %}
         <tr>
             {% for day in week %}
-            <td class="{{ 'holiday' if day.is_holiday else '' }}">
+            <td class="{{ 'holiday' if day.is_holiday else '' }} {{ 'today' if day.is_today else '' }}">
                 {{ day.day }}
+                {% if day.status %}
+                    <div>{{ day.status }}</div>
+                {% endif %}
+                {% if day.early_leave %}
+                    <div>早退: {{ early_leave_times[day.day | string] }}</div>
+                {% elif day.late_arrival %}
+                    <div>遅刻: {{ late_arrival_times[day.day | string] }}</div>
+                {% endif %}
             </td>
             {% endfor %}
         </tr>
