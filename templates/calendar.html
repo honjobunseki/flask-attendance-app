@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>カレンダー</title>
+    <title>{{ year }}年{{ month }}月 カレンダー</title>
     <style>
         table {
             border-collapse: collapse;
@@ -12,7 +12,7 @@
         th, td {
             border: 1px solid #ddd;
             text-align: center;
-            padding: 8px;
+            padding: 10px;
         }
         th {
             background-color: #f2f2f2;
@@ -21,10 +21,14 @@
             background-color: yellow;
             font-weight: bold;
         }
+        .holiday {
+            background-color: red;
+            color: white;
+        }
     </style>
 </head>
 <body>
-    <h1>{{ year }}年{{ month }}月</h1>
+    <h1>{{ year }}年{{ month }}月 カレンダー</h1>
     <table>
         <thead>
             <tr>
@@ -43,25 +47,28 @@
                 {% if day == 0 %}
                     {% set week = week + [''] %}
                 {% else %}
-                    {% set css_class = 'today' if day == today.day else '' %}
-                    {% set week = week + [day] %}
+                    {% set css_class = '' %}
+                    {% if day == today.day %}
+                        {% set css_class = 'today' %}
+                    {% endif %}
+                    {% for holiday in holidays %}
+                        {% if holiday.year == year and holiday.month == month and holiday.day == day %}
+                            {% set css_class = css_class + ' holiday' %}
+                        {% endif %}
+                    {% endfor %}
+                    {% set week = week + [('<td class="' + css_class + '">' + str(day) + '</td>')] %}
                 {% endif %}
 
                 {% if weekday == 6 %}
                     <tr>
-                        {% for d in week %}
-                            <td class="{{ 'today' if d == today.day else '' }}">{{ d }}</td>
-                        {% endfor %}
+                        {{ week|join }}
                     </tr>
                     {% set week = [] %}
                 {% endif %}
             {% endfor %}
-
             {% if week %}
                 <tr>
-                    {% for d in week %}
-                        <td>{{ d }}</td>
-                    {% endfor %}
+                    {{ week|join }}
                 </tr>
             {% endif %}
         </tbody>
