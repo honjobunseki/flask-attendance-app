@@ -2,39 +2,69 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>{{ year }}年{{ month }}月のカレンダー</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カレンダー</title>
     <style>
         table {
-            width: 100%;
             border-collapse: collapse;
+            width: 100%;
         }
-        td {
-            width: 14.28%;
-            height: 100px;
-            text-align: center;
-            vertical-align: top;
+        th, td {
             border: 1px solid #ddd;
+            text-align: center;
+            padding: 8px;
         }
-        .holiday {
-            background-color: red;
-            color: white;
+        th {
+            background-color: #f2f2f2;
         }
         .today {
-            border: 3px solid blue;
+            background-color: yellow;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
-    <h1>{{ year }}年{{ month }}月のカレンダー</h1>
+    <h1>{{ year }}年{{ month }}月</h1>
     <table>
-        <tr>
-            {% for day in days %}
-            <td class="{% if day.is_holiday %}holiday{% endif %} {% if day.day == today.day %}today{% endif %}">
-                {{ day.day }}
-            </td>
+        <thead>
+            <tr>
+                <th>日</th>
+                <th>月</th>
+                <th>火</th>
+                <th>水</th>
+                <th>木</th>
+                <th>金</th>
+                <th>土</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% set week = [] %}
+            {% for day, weekday in month_days %}
+                {% if day == 0 %}
+                    {% set week = week + [''] %}
+                {% else %}
+                    {% set css_class = 'today' if day == today.day else '' %}
+                    {% set week = week + [day] %}
+                {% endif %}
+
+                {% if weekday == 6 %}
+                    <tr>
+                        {% for d in week %}
+                            <td class="{{ 'today' if d == today.day else '' }}">{{ d }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% set week = [] %}
+                {% endif %}
             {% endfor %}
-        </tr>
+
+            {% if week %}
+                <tr>
+                    {% for d in week %}
+                        <td>{{ d }}</td>
+                    {% endfor %}
+                </tr>
+            {% endif %}
+        </tbody>
     </table>
-    <a href="/manage">休日を管理する</a>
 </body>
 </html>
