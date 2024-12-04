@@ -1,17 +1,32 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>休日管理</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理ページ</title>
 </head>
 <body>
-    <h1>休日管理</h1>
-    <form method="POST" action="{{ url_for('manage') }}">
+    <h1>管理ページ</h1>
+    <h2>祝日の管理</h2>
+    <form method="POST">
         <label for="date">日付:</label>
-        <input type="date" id="date" name="date" required>
-        <button type="submit" name="action" value="add">追加</button>
-        <button type="submit" name="action" value="remove">削除</button>
+        <input type="date" name="date" required>
+        <button type="submit" name="action" value="add_holiday">祝日を追加</button>
+        <button type="submit" name="action" value="remove_holiday">祝日を削除</button>
     </form>
-    <h2>現在の休日</h2>
+
+    <h2>勤務時間の設定</h2>
+    <form method="POST">
+        <label for="date">日付:</label>
+        <input type="date" name="date" required>
+        <label for="start_time">開始時間:</label>
+        <input type="time" name="start_time" required>
+        <label for="end_time">終了時間:</label>
+        <input type="time" name="end_time" required>
+        <button type="submit" name="action" value="set_working_hours">勤務時間を設定</button>
+    </form>
+
+    <h2>現在の祝日一覧</h2>
     <ul>
         {% for holiday in holidays %}
             <li>{{ holiday }}</li>
