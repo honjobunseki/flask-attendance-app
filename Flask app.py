@@ -1,69 +1,65 @@
 from flask import Flask, render_template, request, redirect, url_for
-from datetime import datetime, timedelta
-import calendar
+from datetime import datetime
+import sqlite3
 
 app = Flask(__name__)
 
-# カレンダー表示のためのルート
-@app.route("/")
-def calendar_page():
-    # 今日の日付を取得
+# Connect to SQLite database for holidays
+DB_PATH = "holidays.db"
+
+def get_holidays():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT date FROM holidays")
+    holidays = [row[0] for row in cursor.fetchall()]
+    conn.close()
+    return holidays
+
+def add_holiday(date):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO holidays (date) VALUES (?)", (date,))
+    conn.commit()
+    conn.close()
+
+def remove_holiday(date):
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM holidays WHERE date = ?", (date,))
+    conn.commit()
+    conn.close()
+
+@app.route('/')
+def calendar():
     today = datetime.now()
-    year, month = today.year, today.month
+    year = today.year
+    month = today.month
+    first_day_of_month = datetime(year, month, 1)
+    day_of_week = first_day_of_month.weekday()
+    holidays = get_holidays()
 
-    # カレンダーを生成
-    cal = calendar.Calendar(firstweekday=6)  # 日曜日を週の始まりとする
-    month_days = list(cal.itermonthdays2(year, month))  # 日付と曜日のタプルをリストで取得
+    days_in_month = [datetime(year, month, day + 1).strftime("%Y-%m-%d") 
+                     for day in range((datetime(year, month + 1, 1) - first_day_of_month).days)]
+    return render_template('calendar.html', 
+                           year=year, 
+                           month=month, 
+                           today=today.strftime("%Y-%m-%d"),
+                           holidays=holidays, 
+                           days=days_in_month, 
+                           start_day=day_of_week)
 
-    # 祝日や特別な日をここで定義可能（例: 日本の祝日をリスト化）
-    holidays = [
-        datetime(2024, 1, 1),  # 元日
-        datetime(2024, 11, 23),  # 勤労感謝の日
-    ]
+@app.route('/manage', methods=['GET', 'POST'])
+def manage():
+    if request.method == 'POST':
+        date = request.form.get('date')
+        action = request.form.get('action')
+        if action == 'add':
+            add_holiday(date)
+        elif action == 'remove':
+            remove_holiday(date)
+        return redirect(url_for('manage'))
+    holidays = get_holidays()
+    return render_template('manage.html', holidays=holidays)
 
-    # データをテンプレートに渡す
-    return render_template(
-        "calendar.html",
-        today=today,
-        year=year,
-        month=month,
-        month_days=month_days,
-        holidays=holidays,
-    )
-
-# 祝日編集ページ
-@app.route("/manage", methods=["GET", "POST"])
-def manage_holidays():
-    if request.method == "POST":
-        # 新しい祝日を追加する処理
-        new_date = request.form.get("holiday")
-        if new_date:
-            # holidays.txtに追加する（永続化用）
-            with open("holidays.txt", "a") as file:
-                file.write(new_date + "\n")
-        return redirect(url_for("manage_holidays"))
-
-    # holidays.txtから現在の祝日リストを取得
-    try:
-        with open("holidays.txt", "r") as file:
-            holidays = file.read().splitlines()
-    except FileNotFoundError:
-        holidays = []
-
-    return render_template("manage.html", holidays=holidays)
-
-# 祝日削除
-@app.route("/delete_holiday", methods=["POST"])
-def delete_holiday():
-    holiday_to_delete = request.form.get("delete_holiday")
-    if holiday_to_delete:
-        with open("holidays.txt", "r") as file:
-            holidays = file.read().splitlines()
-        # 指定された祝日を削除
-        holidays = [h for h in holidays if h != holiday_to_delete]
-        with open("holidays.txt", "w") as file:
-            file.write("\n".join(holidays) + "\n")
-    return redirect(url_for("manage_holidays"))
-
-if __name__ == "__main__":
-    app.run(debug=True)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
