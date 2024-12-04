@@ -1,49 +1,19 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>出勤カレンダー</title>
-    <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            border: 1px solid #000;
-            text-align: center;
-            padding: 10px;
-        }
-        .holiday {
-            background-color: red;
-            color: white;
-        }
-        .today {
-            border: 3px solid blue;
-            font-weight: bold;
-        }
-    </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カレンダー</title>
 </head>
 <body>
-    <h1>{{ year }}年{{ month }}月の出勤カレンダー</h1>
-    <table>
-        <tr>
-            <th>月</th>
-            <th>火</th>
-            <th>水</th>
-            <th>木</th>
-            <th>金</th>
-            <th>土</th>
-            <th>日</th>
-        </tr>
-        <tr>
-            {% for day in days %}
-                {% if loop.index0 % 7 == 0 and loop.index > 0 %}
-                </tr><tr>
-                {% endif %}
-                <td class="{% if day in holidays %}holiday{% elif day == today %}today{% endif %}">
-                    {{ day[-2:] }}
-                </td>
-            {% endfor %}
-        </tr>
-    </table>
+    <h1>出勤カレンダー</h1>
+    <p>今日の日付: {{ today }}</p>
+    <p>ステータス: {{ status }}</p>
+    <h2>祝日一覧</h2>
+    <ul>
+        {% for holiday in holidays %}
+            <li>{{ holiday }}</li>
+        {% endfor %}
+    </ul>
 </body>
 </html>
