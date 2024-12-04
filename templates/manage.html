@@ -1,27 +1,20 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>祝日管理</title>
+    <title>休日管理</title>
 </head>
 <body>
-    <h1>祝日管理</h1>
-    <form method="POST" action="{{ url_for('manage_holidays') }}">
-        <label for="holiday">新しい祝日を追加:</label>
-        <input type="date" id="holiday" name="holiday" required>
-        <button type="submit">追加</button>
+    <h1>休日管理</h1>
+    <form method="POST" action="{{ url_for('manage') }}">
+        <label for="date">日付:</label>
+        <input type="date" id="date" name="date" required>
+        <button type="submit" name="action" value="add">追加</button>
+        <button type="submit" name="action" value="remove">削除</button>
     </form>
-    <h2>現在の祝日リスト</h2>
+    <h2>現在の休日</h2>
     <ul>
         {% for holiday in holidays %}
-            <li>
-                {{ holiday }}
-                <form method="POST" action="{{ url_for('delete_holiday') }}" style="display:inline;">
-                    <input type="hidden" name="delete_holiday" value="{{ holiday }}">
-                    <button type="submit">削除</button>
-                </form>
-            </li>
+            <li>{{ holiday }}</li>
         {% endfor %}
     </ul>
 </body>
