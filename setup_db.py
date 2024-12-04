@@ -1,17 +1,20 @@
 import sqlite3
 
-# データベースの作成と初期化
-conn = sqlite3.connect('holidays.db')
+DB_PATH = "holidays.db"
+
+# Initialize the database
+conn = sqlite3.connect(DB_PATH)
 cursor = conn.cursor()
 
-# 休日テーブルの作成
+# Create holidays table if it doesn't exist
 cursor.execute('''
-CREATE TABLE IF NOT EXISTS holidays (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    date TEXT UNIQUE NOT NULL
-)
+    CREATE TABLE IF NOT EXISTS holidays (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        date TEXT NOT NULL UNIQUE
+    )
 ''')
 
 conn.commit()
 conn.close()
-print("データベースがセットアップされました。")
+
+print("Database initialized.")
