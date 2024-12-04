@@ -1,40 +1,50 @@
-from flask import Flask, render_template, request, redirect, url_for
-import os
+from flask import Flask, render_template
+import calendar
+import jpholiday
+import json
+from datetime import date, datetime
 
 app = Flask(__name__)
 
-# Sample data for demonstration
-holidays = ["2024-12-25"]
-late_arrival = {"2024-12-15": "10:00"}
-early_leave = {"2024-12-20": "15:00"}
+def load_data():
+    """JSONファイルからデータを読み込む"""
+    with open("holidays.json", "r", encoding="utf-8") as f:
+        return json.load(f)
 
 @app.route("/")
-def index():
-    return render_template("calendar.html", holidays=holidays, late_arrival=late_arrival, early_leave=early_leave)
+def calendar_view():
+    today = date.today()
+    year, month = today.year, today.month
 
-@app.route("/manage", methods=["GET", "POST"])
-def manage():
-    if request.method == "POST":
-        date = request.form["date"]
-        action = request.form["action"]
-        if action == "add_holiday":
-            holidays.append(date)
-        elif action == "remove_holiday" and date in holidays:
-            holidays.remove(date)
-        elif action == "add_late":
-            late_time = request.form["time"]
-            late_arrival[date] = late_time
-        elif action == "remove_late" and date in late_arrival:
-            del late_arrival[date]
-        elif action == "add_early":
-            early_time = request.form["time"]
-            early_leave[date] = early_time
-        elif action == "remove_early" and date in early_leave:
-            del early_leave[date]
-        return redirect(url_for("manage"))
-    return render_template("manage.html", holidays=holidays, late_arrival=late_arrival, early_leave=early_leave)
+    # JSONデータをロード
+    data = load_data()
+    holidays = data.get("holidays", [])
+    working_hours = data.get("working_hours", {})
+
+    # カレンダーの生成
+    cal = calendar.Calendar(firstweekday=6)
+    month_days = cal.itermonthdays4(year, month)
+    days = []
+
+    for day_tuple in month_days:
+        year, month, day, weekday = day_tuple
+        if month == today.month:
+            is_today = today.day == day
+            full_date = f"{year:04d}-{month:02d}-{day:02d}"
+            is_holiday = full_date in holidays or jpholiday.is_holiday(datetime(year, month, day))
+
+            # 勤務時間
+            custom_hours = working_hours.get("custom", {}).get(full_date, working_hours.get("default"))
+            hours = f"{custom_hours['start']}〜{custom_hours['end']}" if not is_holiday else "休み"
+
+            days.append({
+                "day": day,
+                "is_today": is_today,
+                "is_holiday": is_holiday,
+                "hours": hours
+            })
+
+    return render_template("calendar.html", year=year, month=month, days=days)
 
 if __name__ == "__main__":
-    # Use the PORT environment variable for deployment or default to 5000
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True)
