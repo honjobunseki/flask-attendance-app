@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>休日管理</title>
+</head>
+<body>
+    <h1>休日管理</h1>
+    <form method="post">
+        <label for="date">日付を選択:</label>
+        <input type="date" id="date" name="date" required>
+        <button type="submit" name="action" value="add">追加</button>
+        <button type="submit" name="action" value="delete">削除</button>
+    </form>
+    <h2>登録された休日</h2>
+    <ul>
+        {% for holiday in holidays %}
+        <li>{{ holiday['date'] }}</li>
+        {% endfor %}
+    </ul>
+    <a href="/">カレンダーに戻る</a>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ year }}年{{ month }}月のカレンダー</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        td {
+            width: 14.28%;
+            height: 100px;
+            text-align: center;
+            vertical-align: top;
+            border: 1px solid #ddd;
+        }
+        .holiday {
+            background-color: red;
+            color: white;
+        }
+        .today {
+            border: 3px solid blue;
+        }
+    </style>
+</head>
+<body>
+    <h1>{{ year }}年{{ month }}月のカレンダー</h1>
+    <table>
+        <tr>
+            {% for day in days %}
+            <td class="{% if day.is_holiday %}holiday{% endif %} {% if day.day == today.day %}today{% endif %}">
+                {{ day.day }}
+            </td>
+            {% endfor %}
+        </tr>
+    </table>
+    <a href="/manage">休日を管理する</a>
+</body>
+</html>
