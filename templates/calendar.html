@@ -10,6 +10,7 @@
             height: 100px; /* 各セルの高さを設定 */
             text-align: center;
             vertical-align: middle;
+            background-color: #ffffff; /* 背景を白に設定 */
         }
         .today {
             background-color: #ffd700; /* 今日の日付を強調表示 */
@@ -17,13 +18,17 @@
         .holiday {
             background-color: #ffcccc; /* 祝日を赤く表示 */
         }
+        .calendar th {
+            font-weight: bold;
+            border: 1px solid #dee2e6; /* ヘッダーの枠線を統一 */
+        }
     </style>
 </head>
 <body>
     <div class="container mt-4">
         <h1 class="text-center">カレンダー</h1>
         <table class="table table-bordered calendar">
-            <thead class="table-dark">
+            <thead>
                 <tr>
                     <th>月</th>
                     <th>火</th>
