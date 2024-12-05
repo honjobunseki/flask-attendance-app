@@ -5,64 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>カレンダー</title>
     <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            width: 14.2%;
-            height: 50px;
-            text-align: center;
-            vertical-align: middle;
-            border: 1px solid #ccc;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-        td.empty {
-            background-color: #e9e9e9;
-        }
-        td.today {
-            border: 3px solid red;
-        }
-        td.holiday {
-            background-color: #ffcccc;
-        }
+        .holiday { background-color: #ffcccc; }
+        .late { background-color: #fff2cc; }
+        .early { background-color: #ccf2ff; }
+        .today { border: 3px solid red; }
     </style>
 </head>
 <body>
-    <h1>{{ year }}年 {{ month }}月のカレンダー</h1>
+    <h1>{{ year }}年 {{ month }}月</h1>
     <table>
-        <thead>
-            <tr>
-                <th>月</th>
-                <th>火</th>
-                <th>水</th>
-                <th>木</th>
-                <th>金</th>
-                <th>土</th>
-                <th>日</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for week in month_days %}
-            <tr>
-                {% for day in week %}
-                {% if day == 0 %}
-                <td class="empty"></td>
-                {% else %}
-                <td 
-                    class="
-                    {% if day == today %}today{% endif %}
-                    {% if is_holiday(year, month, day) %}holiday{% endif %}
-                    ">
-                    {{ day }}
-                </td>
+        <tr>
+            <th>月</th>
+            <th>火</th>
+            <th>水</th>
+            <th>木</th>
+            <th>金</th>
+            <th>土</th>
+            <th>日</th>
+        </tr>
+        {% for week in month_days %}
+        <tr>
+            {% for day in week %}
+            {% if day == 0 %}
+            <td class="empty"></td>
+            {% else %}
+            <td class="
+                {% if data[year ~ '-' ~ month ~ '-' ~ day] %}
+                {{ data[year ~ '-' ~ month ~ '-' ~ day].status }}
                 {% endif %}
-                {% endfor %}
-            </tr>
+                {% if day == today %}today{% endif %}
+            ">
+                {{ day }}
+            </td>
+            {% endif %}
             {% endfor %}
-        </tbody>
+        </tr>
+        {% endfor %}
     </table>
 </body>
 </html>
