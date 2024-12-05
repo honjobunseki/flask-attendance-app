@@ -1,97 +1,79 @@
 from flask import Flask, render_template, request, redirect, url_for
-import os
-from datetime import datetime
-import sqlite3
+import datetime
+import jpholiday
 
 app = Flask(__name__)
 
-# Database setup
-DB_PATH = "holidays.db"
+# グローバル変数
+holidays = []
+work_status = {"休み": [], "遅刻": {}, "早退": {}}
 
-def init_db():
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS holidays (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                date TEXT UNIQUE
-            )
-        """)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS working_hours (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                date TEXT UNIQUE,
-                start_time TEXT,
-                end_time TEXT
-            )
-        """)
-        conn.commit()
+# カレンダーを生成する関数
+def get_calendar(year, month):
+    first_day = datetime.date(year, month, 1)
+    last_day = datetime.date(year, month + 1, 1) - datetime.timedelta(days=1) if month < 12 else datetime.date(year, 12, 31)
+    calendar = []
+    week = []
+    current_date = first_day
 
-init_db()
+    while current_date.weekday() != 0:
+        week.append(0)  # 空白セル
+        current_date -= datetime.timedelta(days=1)
+
+    current_date = first_day
+    while current_date <= last_day:
+        week.append(current_date.day)
+        if len(week) == 7:
+            calendar.append(week)
+            week = []
+        current_date += datetime.timedelta(days=1)
+
+    while len(week) < 7:
+        week.append(0)
+    if week:
+        calendar.append(week)
+
+    return calendar
 
 @app.route("/")
 def calendar():
-    today = datetime.today()
-    current_year = today.year
-    current_month = today.month
+    today = datetime.date.today()
+    year, month = today.year, today.month
+    month_days = get_calendar(year, month)
 
-    # Get holidays from database
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT date FROM holidays")
-        holidays = [row[0] for row in cursor.fetchall()]
-
-    return render_template(
-        "calendar.html",
-        year=current_year,
-        month=current_month,
-        today=today.day,
-        holidays=holidays
-    )
+    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, holidays=holidays, work_status=work_status)
 
 @app.route("/manage", methods=["GET", "POST"])
 def manage():
+    global holidays, work_status
     if request.method == "POST":
         action = request.form.get("action")
         date = request.form.get("date")
-        start_time = request.form.get("start_time")
-        end_time = request.form.get("end_time")
+        if not date:
+            return redirect(url_for("manage"))
 
-        with sqlite3.connect(DB_PATH) as conn:
-            cursor = conn.cursor()
-            if action == "add_holiday":
-                try:
-                    cursor.execute("INSERT INTO holidays (date) VALUES (?)", (date,))
-                    conn.commit()
-                except sqlite3.IntegrityError:
-                    pass  # Ignore duplicates
-            elif action == "remove_holiday":
-                cursor.execute("DELETE FROM holidays WHERE date = ?", (date,))
-                conn.commit()
-            elif action == "set_working_hours":
-                cursor.execute("""
-                    INSERT INTO working_hours (date, start_time, end_time)
-                    VALUES (?, ?, ?)
-                    ON CONFLICT(date) DO UPDATE SET start_time=excluded.start_time, end_time=excluded.end_time
-                """, (date, start_time, end_time))
-                conn.commit()
+        date = datetime.datetime.strptime(date, "%Y-%m-%d").date()
 
-    # Fetch data for display
-    with sqlite3.connect(DB_PATH) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT date FROM holidays")
-        holidays = [row[0] for row in cursor.fetchall()]
+        if action == "add_holiday":
+            if date not in holidays:
+                holidays.append(date)
+        elif action == "remove_holiday":
+            if date in holidays:
+                holidays.remove(date)
+        elif action == "set_late":
+            late_time = request.form.get("late_time")
+            if late_time:
+                work_status["遅刻"][str(date)] = late_time
+        elif action == "set_early":
+            early_time = request.form.get("early_time")
+            if early_time:
+                work_status["早退"][str(date)] = early_time
 
-        cursor.execute("SELECT date, start_time, end_time FROM working_hours")
-        working_hours = cursor.fetchall()
+        return redirect(url_for("manage"))
 
-    return render_template(
-        "manage.html",
-        holidays=holidays,
-        working_hours=working_hours
-    )
+    return render_template("manage.html", holidays=holidays, work_status=work_status)
 
 if __name__ == "__main__":
-    # Bind to port for Render compatibility
+    import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
