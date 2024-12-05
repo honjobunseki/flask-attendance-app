@@ -4,17 +4,90 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>カレンダー</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        .today {
+            background-color: #ffeb3b;
+        }
+        .holiday {
+            color: red;
+        }
+    </style>
 </head>
 <body>
-    <h1>出勤カレンダー</h1>
-    <p>今日の日付: {{ today }}</p>
-    <p>ステータス: {{ status }}</p>
-    <h2>祝日一覧</h2>
-    <ul>
-        {% for holiday in holidays %}
-            <li>{{ holiday }}</li>
-        {% endfor %}
-    </ul>
-<!-- このコメントはデプロイをトリガーするためのものです -->
+    <h1>カレンダー</h1>
+    <div id="calendar"></div>
+    <script>
+        const holidays = [
+            "2024-02-11", // 建国記念日
+            "2024-02-23"  // 天皇誕生日
+        ];
+
+        function generateCalendar(year, month) {
+            const today = new Date();
+            const firstDay = new Date(year, month - 1, 1).getDay();
+            const daysInMonth = new Date(year, month, 0).getDate();
+
+            const table = document.createElement("table");
+            const header = document.createElement("tr");
+            const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+            days.forEach(day => {
+                const th = document.createElement("th");
+                th.textContent = day;
+                header.appendChild(th);
+            });
+            table.appendChild(header);
+
+            let date = 1;
+            for (let i = 0; i < 6; i++) {
+                const row = document.createElement("tr");
+                for (let j = 0; j < 7; j++) {
+                    const cell = document.createElement("td");
+                    if (i === 0 && j < firstDay) {
+                        cell.textContent = "";
+                    } else if (date > daysInMonth) {
+                        break;
+                    } else {
+                        const fullDate = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`;
+                        cell.textContent = date;
+
+                        if (holidays.includes(fullDate)) {
+                            cell.classList.add("holiday");
+                        }
+                        if (today.getFullYear() === year && today.getMonth() + 1 === month && today.getDate() === date) {
+                            cell.classList.add("today");
+                        }
+                        date++;
+                    }
+                    row.appendChild(cell);
+                }
+                table.appendChild(row);
+                if (date > daysInMonth) {
+                    break;
+                }
+            }
+            return table;
+        }
+
+        const calendarDiv = document.getElementById("calendar");
+        calendarDiv.appendChild(generateCalendar(2024, 2)); // 2024年2月のカレンダー
+    </script>
 </body>
 </html>
