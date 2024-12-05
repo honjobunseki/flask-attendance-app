@@ -5,24 +5,34 @@ from datetime import datetime
 app = Flask(__name__)
 
 @app.route("/")
-def index():
+def calendar_view():
+    # 現在の年月
     now = datetime.now()
     year = now.year
     month = now.month
+    today = now.day
 
-    # カレンダーを生成
-    cal = calendar.Calendar(firstweekday=0)  # 月曜日から開始
-    month_days = cal.monthdayscalendar(year, month)  # 日付を週ごとにリスト化
-    month_name = calendar.month_name[month]
+    # 月のカレンダー情報を取得
+    cal = calendar.Calendar(firstweekday=6)  # 日曜日開始
+    month_days = list(cal.itermonthdays2(year, month))  # [(日付, 曜日)] のタプルリスト
+    weeks = [[]]
+    
+    # 日付を週ごとに整形
+    for day, weekday in month_days:
+        if day == 0:  # 空白の日付
+            weeks[-1].append((None, weekday))
+        else:
+            weeks[-1].append((day, weekday))
+        if weekday == 5:  # 土曜日で行を切り替え
+            weeks.append([])
 
     return render_template(
         "calendar.html",
         year=year,
         month=month,
-        month_name=month_name,
-        month_days=month_days,
-        today=now.day  # 今日の日付をテンプレートに渡す
+        today=today,
+        weeks=weeks,
     )
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=True)
