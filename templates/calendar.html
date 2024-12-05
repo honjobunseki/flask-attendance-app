@@ -10,26 +10,24 @@
             border-collapse: collapse;
         }
         th, td {
-            border: 1px solid #ddd;
+            border: 1px solid black;
             text-align: center;
-            padding: 8px;
-        }
-        th {
-            background-color: #f2f2f2;
+            width: 14.28%;
+            height: 100px;
         }
         .today {
-            border: 2px solid red;
+            border: 3px solid red;
+        }
+        .empty {
+            background-color: #f0f0f0;
         }
         .holiday {
             background-color: #ffcccc;
         }
-        .empty {
-            background-color: #f9f9f9;
-        }
     </style>
 </head>
 <body>
-    <h1>{{ year }}年 {{ month }}月のカレンダー</h1>
+    <h1>{{ year }}年{{ month }}月のカレンダー</h1>
     <table>
         <thead>
             <tr>
@@ -43,14 +41,14 @@
             </tr>
         </thead>
         <tbody>
-            {% for week in weeks %}
+            {% for week in month_days %}
             <tr>
                 {% for day in week %}
                 {% if day == 0 %}
                 <td class="empty"></td>
                 {% elif day == today %}
                 <td class="today">{{ day }}</td>
-                {% elif day in holidays %}
+                {% elif loop.index0 in holidays %}
                 <td class="holiday">{{ day }}</td>
                 {% else %}
                 <td>{{ day }}</td>
