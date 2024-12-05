@@ -23,7 +23,8 @@ def index():
         month=month,
         month_name=month_name,
         month_days=month_days,
-        now=now  # 現在の日付情報を渡す
+        today=now.day,  # 今日の日付
+        now=now  # 現在の日付情報
     )
 
 if __name__ == "__main__":
