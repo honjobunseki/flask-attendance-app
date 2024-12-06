@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for
 import datetime
-import pytz  # タイムゾーン管理用
+import pytz  # タイムゾーン管理用 
 import jpholiday
 
 app = Flask(__name__)
