@@ -14,9 +14,11 @@
             text-align: center;
             width: 14.28%;
             height: 100px;
+            vertical-align: top;
         }
         .today {
             border: 3px solid red;
+            position: relative;
         }
         .empty {
             background-color: #f0f0f0;
@@ -27,16 +29,20 @@
         .weekend {
             background-color: #ffe6e6;
         }
+        .today button {
+            margin-top: 5px;
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
     <h1>{{ year }}年{{ month }}月のカレンダー</h1>
-    <!-- 連絡するボタン -->
-    <div style="margin-bottom: 20px; text-align: right;">
-        <button onclick="window.location.href='mailto:example@example.com';" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
-            連絡する
-        </button>
-    </div>
     <table>
         <thead>
             <tr>
@@ -56,7 +62,10 @@
                 {% if day == 0 %}
                 <td class="empty"></td>
                 {% elif day == today %}
-                <td class="today">{{ day }}</td>
+                <td class="today">
+                    {{ day }}
+                    <button onclick="window.location.href='mailto:example@example.com';">連絡する</button>
+                </td>
                 {% elif loop.index0 in holidays %}
                 <td class="holiday">{{ day }}</td>
                 {% elif loop.index0 % 7 == 5 or loop.index0 % 7 == 6 %}
