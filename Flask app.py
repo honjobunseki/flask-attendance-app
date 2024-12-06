@@ -1,12 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for
 import datetime
-import pytz
 import jpholiday
 
 app = Flask(__name__)
-
-# タイムゾーン設定
-JST = pytz.timezone('Asia/Tokyo')
 
 # グローバル変数
 holidays = []  # 祝日リスト
@@ -22,7 +18,7 @@ def get_calendar(year, month):
 
     # 月曜日から始まるカレンダーのため調整
     while current_date.weekday() != 0:
-        week.append(0)
+        week.insert(0, 0)  # 空のセル
         current_date -= datetime.timedelta(days=1)
     current_date = first_day
 
@@ -43,12 +39,8 @@ def get_calendar(year, month):
 
 # 状況に応じたステータスを取得する関数
 def get_today_status(today):
-    now = datetime.datetime.now(JST)  # 現在時刻（タイムゾーン指定）
+    now = datetime.datetime.now()
     date_str = str(today)
-
-    # 勤務時間の設定（9:30～17:30）
-    start_work = datetime.time(9, 30)
-    end_work = datetime.time(17, 30)
 
     # 「休み」の場合
     if today in holidays:
@@ -70,8 +62,8 @@ def get_today_status(today):
         else:  # 早退済み
             return f"{early_time.strftime('%H:%M')}早退済み"
 
-    # 出勤中の時間帯（平日かつ勤務時間内）
-    if today.weekday() < 5 and start_work <= now.time() <= end_work:
+    # 出勤中の時間帯
+    if today.weekday() < 5 and now.time() >= datetime.time(9, 30) and now.time() <= datetime.time(17, 30):  # 平日かつ勤務時間内
         return "出勤中"
 
     # 上記以外
@@ -83,9 +75,7 @@ def calendar():
     today = datetime.date.today()
     year, month = today.year, today.month
     month_days = get_calendar(year, month)
-
-    # 現在のステータスを計算
-    today_status = get_today_status(today)
+    status = get_today_status(today)  # ステータスを取得
 
     return render_template(
         "calendar.html",
@@ -95,7 +85,7 @@ def calendar():
         month_days=month_days,
         holidays=holidays,
         work_status=work_status,
-        today_status=today_status  # カレンダー上部に表示用
+        status=status  # ステータスを渡す
     )
 
 # 管理ページルート
