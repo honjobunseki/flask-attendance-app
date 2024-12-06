@@ -21,14 +21,22 @@
         .empty {
             background-color: #f0f0f0;
         }
-        .holiday, .weekend {
-            background-color: #ffcccc; /* 赤色の背景 */
+        .holiday {
+            background-color: #ffcccc;
+        }
+        .weekend {
+            background-color: #ffe6e6;
         }
     </style>
 </head>
 <body>
     <h1>{{ year }}年{{ month }}月のカレンダー</h1>
-    <h2>現在のステータス: {{ today_status }}</h2>
+    <!-- 連絡するボタン -->
+    <div style="margin-bottom: 20px; text-align: right;">
+        <button onclick="window.location.href='mailto:example@example.com';" style="padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+            連絡する
+        </button>
+    </div>
     <table>
         <thead>
             <tr>
@@ -49,9 +57,9 @@
                 <td class="empty"></td>
                 {% elif day == today %}
                 <td class="today">{{ day }}</td>
-                {% elif day in holidays %}
+                {% elif loop.index0 in holidays %}
                 <td class="holiday">{{ day }}</td>
-                {% elif loop.index == 7 or loop.index == 6 %}
+                {% elif loop.index0 % 7 == 5 or loop.index0 % 7 == 6 %}
                 <td class="weekend">{{ day }}</td>
                 {% else %}
                 <td>{{ day }}</td>
