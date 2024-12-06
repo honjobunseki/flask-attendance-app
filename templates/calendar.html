@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -18,11 +18,6 @@
         }
         .today {
             border: 3px solid red;
-            position: relative;
-        }
-        .today .day-number {
-            display: block;
-            margin-bottom: 10px;
         }
         .empty {
             background-color: #f0f0f0;
@@ -30,32 +25,18 @@
         .holiday {
             background-color: #ffcccc;
         }
-        .weekend {
-            background-color: #ffe6e6;
-        }
-        .today button {
-            margin-top: 5px;
-            padding: 5px 10px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 12px;
-        }
         .status {
-            font-size: 24px; /* 大きい文字で表示 */
-            text-align: center;
-            margin-bottom: 20px;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .contact-button {
+            margin-top: 10px;
+            display: inline-block;
         }
     </style>
 </head>
 <body>
-    <!-- ステータス表示 -->
-    <div class="status">
-        {{ status }}
-    </div>
-
     <h1>{{ year }}年{{ month }}月のカレンダー</h1>
     <table>
         <thead>
@@ -77,13 +58,12 @@
                 <td class="empty"></td>
                 {% elif day == today %}
                 <td class="today">
-                    <span class="day-number">{{ day }}</span>
-                    <button onclick="window.location.href='mailto:example@example.com';">連絡する</button>
+                    {{ day }}
+                    <div class="status">{{ status }}</div>
+                    <button class="contact-button">連絡する</button>
                 </td>
                 {% elif loop.index0 in holidays %}
                 <td class="holiday">{{ day }}</td>
-                {% elif loop.index0 % 7 == 5 or loop.index0 % 7 == 6 %}
-                <td class="weekend">{{ day }}</td>
                 {% else %}
                 <td>{{ day }}</td>
                 {% endif %}
