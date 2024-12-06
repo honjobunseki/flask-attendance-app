@@ -21,8 +21,8 @@
         .empty {
             background-color: #f0f0f0;
         }
-        .holiday {
-            background-color: #ffcccc;
+        .holiday, .weekend {
+            background-color: #ffcccc; /* 赤色の背景 */
         }
     </style>
 </head>
@@ -51,6 +51,8 @@
                 <td class="today">{{ day }}</td>
                 {% elif day in holidays %}
                 <td class="holiday">{{ day }}</td>
+                {% elif loop.index == 7 or loop.index == 6 %}
+                <td class="weekend">{{ day }}</td>
                 {% else %}
                 <td>{{ day }}</td>
                 {% endif %}
