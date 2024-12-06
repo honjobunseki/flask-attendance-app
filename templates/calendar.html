@@ -20,6 +20,10 @@
             border: 3px solid red;
             position: relative;
         }
+        .today .day-number {
+            display: block;
+            margin-bottom: 10px; /* 日付の下にスペースを作成 */
+        }
         .empty {
             background-color: #f0f0f0;
         }
@@ -63,7 +67,7 @@
                 <td class="empty"></td>
                 {% elif day == today %}
                 <td class="today">
-                    {{ day }}
+                    <span class="day-number">{{ day }}</span>
                     <button onclick="window.location.href='mailto:example@example.com';">連絡する</button>
                 </td>
                 {% elif loop.index0 in holidays %}
