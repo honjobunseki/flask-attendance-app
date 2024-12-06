@@ -93,38 +93,44 @@ def calendar():
 @app.route("/manage", methods=["GET", "POST"])
 def manage():
     global holidays, work_status
+    error_message = None  # エラー表示用メッセージ
+
     if request.method == "POST":
-        action = request.form.get("action")
-        date = request.form.get("date")
-        if not date:
-            return redirect(url_for("manage"))
+        try:
+            action = request.form.get("action")
+            date = request.form.get("date")
 
-        date = datetime.datetime.strptime(date, "%Y-%m-%d").date()
+            if not date:
+                error_message = "日付を入力してください。"
+                raise ValueError("日付が指定されていません。")
 
-        if action == "add_holiday":
-            if date not in holidays:
-                holidays.append(date)
-        elif action == "remove_holiday":
-            if date in holidays:
-                holidays.remove(date)
-        elif action == "add_late":
-            late_time = request.form.get("time")
-            if late_time:
-                work_status["遅刻"][str(date)] = late_time
-        elif action == "remove_late":
-            if str(date) in work_status["遅刻"]:
-                del work_status["遅刻"][str(date)]
-        elif action == "add_early":
-            early_time = request.form.get("time")
-            if early_time:
-                work_status["早退"][str(date)] = early_time
-        elif action == "remove_early":
-            if str(date) in work_status["早退"]:
-                del work_status["早退"][str(date)]
+            date = datetime.datetime.strptime(date, "%Y-%m-%d").date()
 
-        return redirect(url_for("manage"))
+            if action == "add_holiday":
+                if date not in holidays:
+                    holidays.append(date)
+            elif action == "remove_holiday":
+                if date in holidays:
+                    holidays.remove(date)
+            elif action == "add_late":
+                late_time = request.form.get("time")
+                if late_time:
+                    work_status["遅刻"][str(date)] = late_time
+            elif action == "remove_late":
+                if str(date) in work_status["遅刻"]:
+                    del work_status["遅刻"][str(date)]
+            elif action == "add_early":
+                early_time = request.form.get("time")
+                if early_time:
+                    work_status["早退"][str(date)] = early_time
+            elif action == "remove_early":
+                if str(date) in work_status["早退"]:
+                    del work_status["早退"][str(date)]
 
-    return render_template("manage.html", holidays=holidays, work_status=work_status)
+        except Exception as e:
+            error_message = f"エラーが発生しました: {str(e)}"
+
+    return render_template("manage.html", holidays=holidays, work_status=work_status, error_message=error_message)
 
 if __name__ == "__main__":
     import os
