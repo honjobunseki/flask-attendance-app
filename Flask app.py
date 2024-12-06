@@ -1,11 +1,16 @@
 from flask import Flask, render_template, request, redirect, url_for
 import datetime
+import pytz  # タイムゾーン管理用
+import jpholiday
 
 app = Flask(__name__)
 
 # グローバル変数
 holidays = []  # 祝日リスト
 work_status = {"休み": [], "遅刻": {}, "早退": {}}  # 勤務ステータス
+
+# タイムゾーンを日本時間に設定
+jst = pytz.timezone("Asia/Tokyo")
 
 # カレンダーを生成する関数
 def get_calendar(year, month):
@@ -36,36 +41,49 @@ def get_calendar(year, month):
 
     return calendar
 
-# ステータス判定を行う関数
+# 状況に応じたステータスを取得する関数
 def get_today_status(today):
-    now = datetime.datetime.now()
+    now = datetime.datetime.now(jst)
     date_str = str(today)
 
+    # デバッグ用のログ
+    print(f"現在の時刻: {now.time()}, 今日の日付: {today}")
+    print(f"祝日リスト: {holidays}")
+    print(f"遅刻リスト: {work_status['遅刻']}")
+    print(f"早退リスト: {work_status['早退']}")
+
     # 「休み」の場合
-    if today in holidays:
+    if today in holidays or jpholiday.is_holiday(today):
+        print("ステータス: 休み")
         return "休み"
 
     # 「遅刻」の場合
     if date_str in work_status["遅刻"]:
         late_time = datetime.datetime.strptime(work_status["遅刻"][date_str], "%H:%M").time()
         if now.time() < late_time:  # 出勤予定時間前
+            print(f"ステータス: 遅刻中 {late_time.strftime('%H:%M')} 出勤予定")
             return f"遅刻中 {late_time.strftime('%H:%M')} 出勤予定"
         else:  # 出勤済み
+            print("ステータス: 出勤中")
             return "出勤中"
 
     # 「早退」の場合
     if date_str in work_status["早退"]:
         early_time = datetime.datetime.strptime(work_status["早退"][date_str], "%H:%M").time()
         if now.time() < early_time:  # 早退予定時間前
+            print(f"ステータス: {early_time.strftime('%H:%M')} 早退予定")
             return f"{early_time.strftime('%H:%M')} 早退予定"
         else:  # 早退済み
+            print(f"ステータス: {early_time.strftime('%H:%M')} 早退済み")
             return f"{early_time.strftime('%H:%M')} 早退済み"
 
     # 出勤中の時間帯
     if today.weekday() < 5 and datetime.time(9, 30) <= now.time() <= datetime.time(17, 30):  # 平日かつ勤務時間内
+        print("ステータス: 出勤中")
         return "出勤中"
 
     # 上記以外
+    print("ステータス: 勤務外")
     return "勤務外"
 
 # カレンダー表示ルート
@@ -75,8 +93,6 @@ def calendar():
     year, month = today.year, today.month
     month_days = get_calendar(year, month)
 
-    today_status = get_today_status(today)  # 今日のステータスを取得
-
     return render_template(
         "calendar.html",
         year=year,
@@ -84,8 +100,7 @@ def calendar():
         today=today.day,
         month_days=month_days,
         holidays=holidays,
-        work_status=work_status,
-        today_status=today_status
+        work_status=work_status
     )
 
 # 管理ページルート
