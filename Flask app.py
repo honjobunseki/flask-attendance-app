@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for
 import datetime
+from pytz import timezone
 import jpholiday
 
 app = Flask(__name__)
@@ -18,7 +19,7 @@ def get_calendar(year, month):
 
     # 月曜日から始まるカレンダーのため調整
     while current_date.weekday() != 0:
-        week.insert(0, 0)  # 空のセル
+        week.append(0)
         current_date -= datetime.timedelta(days=1)
     current_date = first_day
 
@@ -39,7 +40,9 @@ def get_calendar(year, month):
 
 # 状況に応じたステータスを取得する関数
 def get_today_status(today):
-    now = datetime.datetime.now()
+    # 日本のタイムゾーンを指定
+    JST = timezone('Asia/Tokyo')
+    now = datetime.datetime.now(JST)  # 現在の日本時間を取得
     date_str = str(today)
 
     # 「休み」の場合
@@ -75,7 +78,7 @@ def calendar():
     today = datetime.date.today()
     year, month = today.year, today.month
     month_days = get_calendar(year, month)
-    status = get_today_status(today)  # ステータスを取得
+    status = get_today_status(today)
 
     return render_template(
         "calendar.html",
@@ -85,7 +88,7 @@ def calendar():
         month_days=month_days,
         holidays=holidays,
         work_status=work_status,
-        status=status  # ステータスを渡す
+        status=status
     )
 
 # 管理ページルート
