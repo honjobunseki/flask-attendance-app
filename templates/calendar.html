@@ -22,7 +22,7 @@
         }
         .today .day-number {
             display: block;
-            margin-bottom: 10px; /* 日付の下にスペースを作成 */
+            margin-bottom: 10px;
         }
         .empty {
             background-color: #f0f0f0;
@@ -43,9 +43,19 @@
             cursor: pointer;
             font-size: 12px;
         }
+        .status {
+            font-size: 24px; /* 大きい文字で表示 */
+            text-align: center;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
+    <!-- ステータス表示 -->
+    <div class="status">
+        {{ status }}
+    </div>
+
     <h1>{{ year }}年{{ month }}月のカレンダー</h1>
     <table>
         <thead>
