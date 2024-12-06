@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,6 +28,7 @@
 </head>
 <body>
     <h1>{{ year }}年{{ month }}月のカレンダー</h1>
+    <h2>現在のステータス: {{ status }}</h2>
     <table>
         <thead>
             <tr>
@@ -48,7 +49,7 @@
                 <td class="empty"></td>
                 {% elif day == today %}
                 <td class="today">{{ day }}</td>
-                {% elif loop.index0 in holidays %}
+                {% elif day in holidays %}
                 <td class="holiday">{{ day }}</td>
                 {% else %}
                 <td>{{ day }}</td>
