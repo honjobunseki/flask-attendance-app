@@ -17,7 +17,7 @@ def get_calendar(year, month):
     current_date = first_day
 
     # 月曜日から始まるカレンダーのため調整
-    while current_date.weekday() != 0:  # 月曜まで空白セル
+    while current_date.weekday() != 0:
         week.append(0)
         current_date -= datetime.timedelta(days=1)
     current_date = first_day
@@ -36,6 +36,38 @@ def get_calendar(year, month):
         calendar.append(week)
 
     return calendar
+
+# 状況に応じたステータスを取得する関数
+def get_today_status(today):
+    now = datetime.datetime.now()
+    date_str = str(today)
+
+    # 「休み」の場合
+    if today in holidays:
+        return "休み"
+
+    # 「遅刻」の場合
+    if date_str in work_status["遅刻"]:
+        late_time = datetime.datetime.strptime(work_status["遅刻"][date_str], "%H:%M").time()
+        if now.time() < late_time:  # 出勤予定時間前
+            return f"遅刻中 {late_time.strftime('%H:%M')}出勤予定"
+        else:  # 出勤済み
+            return "出勤中"
+
+    # 「早退」の場合
+    if date_str in work_status["早退"]:
+        early_time = datetime.datetime.strptime(work_status["早退"][date_str], "%H:%M").time()
+        if now.time() < early_time:  # 早退予定時間前
+            return f"{early_time.strftime('%H:%M')}早退予定"
+        else:  # 早退済み
+            return f"{early_time.strftime('%H:%M')}早退済み"
+
+    # 出勤中の時間帯
+    if today.weekday() < 5 and now.time() >= datetime.time(9, 30) and now.time() <= datetime.time(17, 30):  # 平日かつ勤務時間内
+        return "出勤中"
+
+    # 上記以外
+    return "勤務外"
 
 # カレンダー表示ルート
 @app.route("/")
@@ -60,13 +92,18 @@ def manage():
     global holidays, work_status
     data = {}  # 各日付のステータス情報を格納
 
-    # 祝日・遅刻・早退情報をデータ化
+    today = datetime.date.today()
+    data[str(today)] = {"status": get_today_status(today)}  # 当日のステータスを追加
+
     for date in holidays:
-        data[str(date)] = {"status": "休み", "time": None}
+        if str(date) not in data:
+            data[str(date)] = {"status": "休み", "time": None}
     for date, time in work_status["遅刻"].items():
-        data[date] = {"status": "遅刻", "time": time}
+        if str(date) not in data:
+            data[date] = {"status": "遅刻", "time": time}
     for date, time in work_status["早退"].items():
-        data[date] = {"status": "早退", "time": time}
+        if str(date) not in data:
+            data[date] = {"status": "早退", "time": time}
 
     if request.method == "POST":
         action = request.form.get("action")
