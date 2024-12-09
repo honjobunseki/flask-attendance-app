@@ -76,7 +76,7 @@ def calendar():
     today = datetime.date.today()
     year, month = today.year, today.month
     month_days = get_calendar(year, month)
-    status = get_today_status(today)
+    today_status = get_today_status(today)
 
     return render_template(
         "calendar.html",
@@ -86,7 +86,7 @@ def calendar():
         month_days=month_days,
         holidays=holidays,
         work_status=work_status,
-        today_status=status
+        today_status=today_status
     )
 
 # 管理ページルート
@@ -96,7 +96,8 @@ def manage():
     data = {}  # 各日付のステータス情報を格納
 
     today = datetime.date.today()
-    data[str(today)] = {"status": get_today_status(today)}  # 当日のステータスを追加
+    today_status = get_today_status(today)
+    data[str(today)] = {"status": today_status}  # 当日のステータスを追加
 
     for date in holidays:
         if str(date) not in data:
@@ -143,7 +144,8 @@ def manage():
         "manage.html",
         holidays=holidays,
         work_status=work_status,
-        data=data
+        data=data,
+        today_status=today_status
     )
 
 if __name__ == "__main__":
