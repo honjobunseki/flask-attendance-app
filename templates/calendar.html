@@ -17,13 +17,17 @@
             vertical-align: top;
         }
         .today {
-            border: 3px solid red;
+            border: 3px solid red; /* 太枠 */
+            background-color: #ffcccc; /* 背景色を赤く塗りつぶす */
         }
         .empty {
             background-color: #f0f0f0;
         }
-        .holiday, .weekend, .status-holiday, .status-late, .status-early {
-            background-color: #ffcccc;
+        .holiday, .weekend {
+            background-color: #ffcccc; /* 休日や週末 */
+        }
+        .status-holiday, .status-late, .status-early {
+            background-color: #ffcccc; /* 特定ステータス */
         }
         .status {
             font-size: 14px;
