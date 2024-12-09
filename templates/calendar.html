@@ -27,7 +27,10 @@
             background-color: #ffcccc; /* 休日や週末 */
         }
         .status-holiday, .status-late, .status-early {
-            background-color: #ffcccc; /* 特定ステータス */
+            background-color: #ffcccc; /* 特定ステータスの日 */
+        }
+        .status-work {
+            background-color: white; /* 出勤中の背景色は白 */
         }
         .status {
             font-size: 14px;
@@ -65,6 +68,7 @@
                 {% set is_status_holiday = day_status == "休み" %}
                 {% set is_status_late = day_status.startswith("遅刻中") %}
                 {% set is_status_early = day_status.startswith("早退済み") %}
+                {% set is_status_work = day_status == "出勤中" %}
 
                 {% if day == 0 %}
                 <td class="empty"></td>
@@ -74,10 +78,12 @@
                     <div class="status">{{ today_status }}</div>
                     <button class="contact-button">連絡する</button>
                 </td>
-                {% elif is_holiday or is_weekend or is_status_holiday or is_status_late or is_status_early %}
+                {% elif is_status_holiday or is_status_late or is_status_early %}
+                <td class="holiday">{{ day }}</td>
+                {% elif is_holiday or is_weekend %}
                 <td class="holiday">{{ day }}</td>
                 {% else %}
-                <td>{{ day }}</td>
+                <td class="status-work">{{ day }}</td>
                 {% endif %}
                 {% endfor %}
             </tr>
