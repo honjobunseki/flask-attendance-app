@@ -57,9 +57,10 @@
                 {% set is_weekend = loop.index in [6, 7] %}
                 {% set is_holiday = day in holidays %}
                 {% set is_today = day == today %}
-                {% set is_status_holiday = day in work_status['休み'] %}
-                {% set is_status_late = day in work_status['遅刻'] and now.time() < work_status['遅刻'][day] %}
-                {% set is_status_early = day in work_status['早退'] and now.time() > work_status['早退'][day] %}
+                {% set day_status = work_status.get(day, "") %}
+                {% set is_status_holiday = day_status == "休み" %}
+                {% set is_status_late = day_status.startswith("遅刻中") %}
+                {% set is_status_early = day_status.startswith("早退済み") %}
 
                 {% if day == 0 %}
                 <td class="empty"></td>
