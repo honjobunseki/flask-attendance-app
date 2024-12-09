@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for
 import datetime
-from pytz import timezone
+import pytz
 import jpholiday
 
 app = Flask(__name__)
@@ -40,9 +40,7 @@ def get_calendar(year, month):
 
 # 状況に応じたステータスを取得する関数
 def get_today_status(today):
-    # 日本のタイムゾーンを指定
-    JST = timezone('Asia/Tokyo')
-    now = datetime.datetime.now(JST)  # 現在の日本時間を取得
+    now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
     date_str = str(today)
 
     # 「休み」の場合
@@ -88,7 +86,7 @@ def calendar():
         month_days=month_days,
         holidays=holidays,
         work_status=work_status,
-        status=status
+        today_status=status
     )
 
 # 管理ページルート
