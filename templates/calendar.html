@@ -78,9 +78,15 @@
                     <button class="contact-button">連絡する</button>
                 </td>
                 {% elif is_status_holiday or is_status_late or is_status_early %}
-                <td class="holiday">{{ day }}</td>
+                <td class="holiday">
+                    {{ day }}
+                    <div class="status">{{ day_status }}</div>
+                </td>
                 {% elif is_status_work %}
-                <td class="status-work">{{ day }}</td>
+                <td class="status-work">
+                    {{ day }}
+                    <div class="status">{{ day_status }}</div>
+                </td>
                 {% elif is_holiday or is_weekend %}
                 <td class="holiday">{{ day }}</td>
                 {% else %}
