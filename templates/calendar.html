@@ -17,19 +17,19 @@
             vertical-align: top;
         }
         .today {
-            border: 3px solid red; /* 太枠 */
+            border: 3px solid red; /* 赤枠で囲む */
         }
         .empty {
             background-color: #f0f0f0;
         }
         .holiday, .status-holiday, .status-late, .status-early {
-            background-color: #ffcccc; /* 特定ステータスや休日の背景を赤く */
+            background-color: #ffcccc; /* 赤い背景 */
         }
         .status-work {
-            background-color: white; /* 出勤中の背景色を白に設定 */
+            background-color: white; /* 出勤中は白い背景 */
         }
         .weekend {
-            background-color: #ffe6e6; /* 土日の背景色を薄い赤 */
+            background-color: #ffe6e6; /* 土日の背景を薄い赤 */
         }
         .status {
             font-size: 14px;
@@ -60,10 +60,8 @@
             {% for week in month_days %}
             <tr>
                 {% for day in week %}
-                {% set is_weekend = loop.index in [6, 7] %}
-                {% set is_holiday = day in holidays %}
+                {% set day_status = work_status.get(str(year) + "-" + month|string.zfill(2) + "-" + day|string.zfill(2), "") %}
                 {% set is_today = day == today %}
-                {% set day_status = work_status.get(day, "") %}
                 {% set is_status_holiday = day_status == "休み" %}
                 {% set is_status_late = day_status.startswith("遅刻中") %}
                 {% set is_status_early = day_status.startswith("早退済み") %}
@@ -87,8 +85,6 @@
                     {{ day }}
                     <div class="status">{{ day_status }}</div>
                 </td>
-                {% elif is_holiday or is_weekend %}
-                <td class="holiday">{{ day }}</td>
                 {% else %}
                 <td>{{ day }}</td>
                 {% endif %}
