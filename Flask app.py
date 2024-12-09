@@ -139,7 +139,12 @@ def manage():
 
         return redirect(url_for("manage"))
 
-    return render_template("manage.html", holidays=holidays, work_status=work_status, data=data)
+    return render_template(
+        "manage.html",
+        holidays=holidays,
+        work_status=work_status,
+        data=data
+    )
 
 if __name__ == "__main__":
     import os
