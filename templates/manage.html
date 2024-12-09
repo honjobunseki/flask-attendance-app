@@ -8,14 +8,27 @@
 <body>
     <h1>出勤管理ページ</h1>
 
+    <!-- 休みの管理 -->
     <h2>休みを管理</h2>
     <form method="POST">
         <label for="date">日付:</label>
         <input type="date" name="date" required>
         <button type="submit" name="action" value="add_holiday">休みを追加</button>
-        <button type="submit" name="action" value="remove_holiday">休みを削除</button>
     </form>
+    <h3>現在の休み一覧</h3>
+    <ul>
+        {% for holiday in holidays %}
+        <li>
+            {{ holiday }}
+            <form method="POST" style="display:inline;">
+                <input type="hidden" name="date" value="{{ holiday }}">
+                <button type="submit" name="action" value="remove_holiday">削除</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
 
+    <!-- 遅刻の管理 -->
     <h2>遅刻を管理</h2>
     <form method="POST">
         <label for="date">日付:</label>
@@ -23,9 +36,21 @@
         <label for="time">出勤予定時間:</label>
         <input type="time" name="time" required>
         <button type="submit" name="action" value="add_late">遅刻を追加</button>
-        <button type="submit" name="action" value="remove_late">遅刻を削除</button>
     </form>
+    <h3>現在の遅刻一覧</h3>
+    <ul>
+        {% for date, time in work_status["遅刻"].items() %}
+        <li>
+            {{ date }}: {{ time }}
+            <form method="POST" style="display:inline;">
+                <input type="hidden" name="date" value="{{ date }}">
+                <button type="submit" name="action" value="remove_late">削除</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
 
+    <!-- 早退の管理 -->
     <h2>早退を管理</h2>
     <form method="POST">
         <label for="date">日付:</label>
@@ -33,16 +58,16 @@
         <label for="time">早退予定時間:</label>
         <input type="time" name="time" required>
         <button type="submit" name="action" value="add_early">早退を追加</button>
-        <button type="submit" name="action" value="remove_early">早退を削除</button>
     </form>
-
-    <h2>現在のステータス</h2>
+    <h3>現在の早退一覧</h3>
     <ul>
-        {% for date, info in data.items() %}
-        <li>{{ date }}: {{ info.status }}
-            {% if info.time %}
-            (時間: {{ info.time }})
-            {% endif %}
+        {% for date, time in work_status["早退"].items() %}
+        <li>
+            {{ date }}: {{ time }}
+            <form method="POST" style="display:inline;">
+                <input type="hidden" name="date" value="{{ date }}">
+                <button type="submit" name="action" value="remove_early">削除</button>
+            </form>
         </li>
         {% endfor %}
     </ul>
