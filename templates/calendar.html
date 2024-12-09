@@ -18,19 +18,18 @@
         }
         .today {
             border: 3px solid red; /* 太枠 */
-            background-color: #ffcccc; /* 背景色を赤く塗りつぶす */
         }
         .empty {
             background-color: #f0f0f0;
         }
-        .holiday, .weekend {
-            background-color: #ffcccc; /* 休日や週末 */
-        }
-        .status-holiday, .status-late, .status-early {
-            background-color: #ffcccc; /* 特定ステータスの日 */
+        .holiday, .status-holiday, .status-late, .status-early {
+            background-color: #ffcccc; /* 特定ステータスや休日の背景を赤く */
         }
         .status-work {
-            background-color: white; /* 出勤中の背景色は白 */
+            background-color: white; /* 出勤中の背景色を白に設定 */
+        }
+        .weekend {
+            background-color: #ffe6e6; /* 土日の背景色を薄い赤 */
         }
         .status {
             font-size: 14px;
@@ -75,15 +74,17 @@
                 {% elif is_today %}
                 <td class="today">
                     {{ day }}
-                    <div class="status">{{ today_status }}</div>
+                    <div class="status">{{ day_status }}</div>
                     <button class="contact-button">連絡する</button>
                 </td>
                 {% elif is_status_holiday or is_status_late or is_status_early %}
                 <td class="holiday">{{ day }}</td>
+                {% elif is_status_work %}
+                <td class="status-work">{{ day }}</td>
                 {% elif is_holiday or is_weekend %}
                 <td class="holiday">{{ day }}</td>
                 {% else %}
-                <td class="status-work">{{ day }}</td>
+                <td>{{ day }}</td>
                 {% endif %}
                 {% endfor %}
             </tr>
