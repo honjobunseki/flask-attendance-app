@@ -64,7 +64,7 @@ def get_status_for_date(date):
 
     # 出勤中の時間帯
     if date.weekday() < 5 and datetime.time(9, 30) <= now.time() <= datetime.time(17, 30):
-        return "出勤中"
+        return "勤務中"
 
     # 上記以外
     return "勤務外"
