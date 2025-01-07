@@ -1,91 +1,16 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>カレンダー</title>
-    <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            border: 1px solid black;
-            text-align: center;
-            width: 14.28%;
-            height: 100px;
-            vertical-align: top;
-        }
-        .today {
-            border: 3px solid red; /* 太枠 */
-            background-color: #ffcccc; /* 今日のマスを赤く塗りつぶす */
-        }
-        .empty {
-            background-color: #f0f0f0;
-        }
-        .holiday, .weekend, .status-holiday, .status-late, .status-early {
-            background-color: #ffcccc; /* 休日や特定ステータスの日 */
-        }
-        .status-working {
-            background-color: #ccffcc; /* 出勤中の日は緑色 */
-        }
-        .status {
-            font-size: 14px;
-            font-weight: bold;
-            margin-top: 5px;
-        }
-        .contact-button {
-            margin-top: 10px;
-            display: inline-block;
-        }
-    </style>
-</head>
-<body>
-    <h1>{{ year }}年{{ month }}月のカレンダー</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>月</th>
-                <th>火</th>
-                <th>水</th>
-                <th>木</th>
-                <th>金</th>
-                <th class="weekend">土</th>
-                <th class="weekend">日</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for week in month_days %}
-            <tr>
-                {% for day in week %}
-                {% set is_weekend = loop.index in [6, 7] %}
-                {% set is_holiday = day in holidays %}
-                {% set is_today = day == today %}
-                {% set day_status = work_status.get(day, "") %}
-                {% set is_status_holiday = day_status == "休み" %}
-                {% set is_status_late = day_status.startswith("遅刻中") %}
-                {% set is_status_early = day_status.startswith("早退済み") %}
-                {% set is_status_working = day_status == "出勤中" %}
-
-                {% if day == 0 %}
-                <td class="empty"></td>
-                {% elif is_today %}
-                <td class="today">
-                    {{ day }}
-                    <div class="status">{{ today_status }}</div>
-                    <button class="contact-button">連絡する</button>
-                </td>
-                {% elif is_status_holiday or is_status_late or is_status_early or is_holiday or is_weekend %}
-                <td class="holiday">{{ day }}</td>
-                {% elif is_status_working %}
-                <td class="status-working">{{ day }}</td>
-                {% else %}
-                <td>{{ day }}</td>
-                {% endif %}
-                {% endfor %}
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</body>
-</html>
+<tbody>
+    {% for week in month_days %}
+    <tr>
+        {% for day in week %}
+        {% if day == 0 %}
+        <td class="empty"></td>
+        {% else %}
+        <td class="{{ 'today' if day == today else 'holiday' if day_status.get(day) in ['休み', '遅刻中'] else '' }}">
+            {{ day }}
+            <div class="status">{{ day_status.get(day, '') }}</div>
+        </td>
+        {% endif %}
+        {% endfor %}
+    </tr>
+    {% endfor %}
+</tbody>
