@@ -62,8 +62,8 @@ def get_day_status(day):
         else:
             return "早退済"
 
-    # 平日かつ「休み」、「遅刻中」、「早退済み」でない場合に出勤中を表示
-    if day.weekday() < 5:  # 平日かつ勤務日
+    # 平日のデフォルト
+    if day.weekday() < 5:
         return "出勤中"
 
     # 上記以外は勤務外
