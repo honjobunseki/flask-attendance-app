@@ -63,8 +63,8 @@ def get_today_status(today):
             return "早退済み"
 
     # 出勤中の時間帯（平日かつ勤務時間内）
-    if today.weekday() < 5 and datetime.time(9, 30) <= now.time() <= datetime.time(17, 30):
-        return "勤務中"
+    if today.weekday() < 5 and datetime.time(9, 0) <= now.time() <= datetime.time(17, 30) and not jpholiday.is_holiday(today):
+        return "出勤中"
 
     # 上記以外
     return "勤務外"
