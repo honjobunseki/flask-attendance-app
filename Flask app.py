@@ -37,13 +37,13 @@ def get_calendar(year, month):
 
     return calendar
 
-# 各日付のステータスを取得する関数
-def get_status_for_date(date):
+# 本日のステータスを取得する関数
+def get_today_status(today):
     now = datetime.datetime.now()
-    date_str = date.strftime("%Y-%m-%d")
+    date_str = today.strftime("%Y-%m-%d")
 
     # 「休み」の場合
-    if date in holidays:
+    if today in holidays:
         return "休み"
 
     # 「遅刻」の場合
@@ -63,7 +63,7 @@ def get_status_for_date(date):
             return "早退済み"
 
     # 出勤中の時間帯（平日かつ勤務時間内）
-    if date.weekday() < 5 and datetime.time(9, 30) <= now.time() <= datetime.time(17, 30):
+    if today.weekday() < 5 and datetime.time(9, 30) <= now.time() <= datetime.time(17, 30):
         return "勤務中"
 
     # 上記以外
@@ -76,15 +76,8 @@ def calendar():
     year, month = today.year, today.month
     month_days = get_calendar(year, month)
 
-    # 各日付のステータスを生成
-    day_status = {}
-    for week in month_days:
-        for day in week:
-            if day > 0:  # 空白セル（0）はスキップ
-                date = datetime.date(year, month, day)
-                day_status[day] = get_status_for_date(date)
-
-    today_status = get_status_for_date(today)
+    # 本日のステータスのみ取得
+    today_status = get_today_status(today)
 
     return render_template(
         "calendar.html",
@@ -92,7 +85,6 @@ def calendar():
         month=month,
         today=today.day,
         month_days=month_days,
-        day_status=day_status,
         today_status=today_status
     )
 
