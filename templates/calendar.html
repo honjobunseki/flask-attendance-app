@@ -17,17 +17,10 @@
             vertical-align: top;
         }
         .today {
-            border: 3px solid red;
-            background-color: #ccffcc; /* 今日が出勤中なら緑 */
+            border: 3px solid red; /* 太枠 */
         }
         .empty {
             background-color: #f0f0f0;
-        }
-        .holiday, .weekend {
-            background-color: #ffcccc;
-        }
-        .status-holiday, .status-late, .status-early {
-            background-color: #ffcccc;
         }
         .status {
             font-size: 14px;
@@ -50,8 +43,8 @@
                 <th>水</th>
                 <th>木</th>
                 <th>金</th>
-                <th class="weekend">土</th>
-                <th class="weekend">日</th>
+                <th>土</th>
+                <th>日</th>
             </tr>
         </thead>
         <tbody>
@@ -64,13 +57,9 @@
                 <td class="today">
                     {{ day }}
                     <div class="status">{{ today_status }}</div>
-                    <button class="contact-button">連絡する</button>
                 </td>
                 {% else %}
-                <td class="{{ 'holiday' if day_status[day] == '休み' else '' }}">
-                    {{ day }}
-                    <div class="status">{{ day_status[day] }}</div>
-                </td>
+                <td>{{ day }}</td>
                 {% endif %}
                 {% endfor %}
             </tr>
