@@ -52,7 +52,7 @@ def get_status_for_date(date):
         if now.time() < late_time:  # 出勤予定時間前
             return f"遅刻中 {late_time.strftime('%H:%M')} 出勤予定"
         else:
-            return "出勤中"
+            return "勤務中"
 
     # 「早退」の場合
     if date_str in work_status["早退"]:
