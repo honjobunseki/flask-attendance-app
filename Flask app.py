@@ -49,7 +49,7 @@ def get_status_for_date(date):
     # 「遅刻」の場合
     if date_str in work_status["遅刻"]:
         late_time = datetime.datetime.strptime(work_status["遅刻"][date_str], "%H:%M").time()
-        if now.time() < late_time:
+        if now.time() < late_time:  # 出勤予定時間前
             return f"遅刻中 {late_time.strftime('%H:%M')} 出勤予定"
         else:
             return "出勤中"
@@ -57,12 +57,12 @@ def get_status_for_date(date):
     # 「早退」の場合
     if date_str in work_status["早退"]:
         early_time = datetime.datetime.strptime(work_status["早退"][date_str], "%H:%M").time()
-        if now.time() < early_time:
+        if now.time() < early_time:  # 早退予定時間前
             return f"{early_time.strftime('%H:%M')} 早退予定"
         else:
             return "早退済み"
 
-    # 出勤中の時間帯
+    # 出勤中の時間帯（平日かつ勤務時間内）
     if date.weekday() < 5 and datetime.time(9, 30) <= now.time() <= datetime.time(17, 30):
         return "勤務中"
 
@@ -84,13 +84,16 @@ def calendar():
                 date = datetime.date(year, month, day)
                 day_status[day] = get_status_for_date(date)
 
+    today_status = get_status_for_date(today)
+
     return render_template(
         "calendar.html",
         year=year,
         month=month,
         today=today.day,
         month_days=month_days,
-        day_status=day_status
+        day_status=day_status,
+        today_status=today_status
     )
 
 # 管理ページルート
@@ -135,4 +138,3 @@ if __name__ == "__main__":
     import os
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-
