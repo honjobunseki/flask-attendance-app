@@ -17,13 +17,17 @@
             vertical-align: top;
         }
         .today {
-            border: 3px solid red;
+            border: 3px solid red; /* 太枠 */
+        }
+        .empty {
+            background-color: #f0f0f0;
         }
         .holiday {
-            background-color: #ffcccc;
+            background-color: #ffcccc; /* 休みの日 */
         }
         .status {
             font-size: 12px;
+            font-weight: bold;
             margin-top: 5px;
         }
     </style>
@@ -46,16 +50,15 @@
             {% for week in month_days %}
             <tr>
                 {% for day in week %}
-                {% if day == 0 %}
-                <td></td>
-                {% else %}
-                <td class="{% if day in holidays %}holiday{% endif %}">
-                    {{ day.day }}
-                    <div class="status">
-                        {{ day_statuses[day|string] }}
-                    </div>
+                {% set day_str = str(day) %}
+                <td class="{% if day == today %}today{% elif day in holidays %}holiday{% endif %}">
+                    {% if day != 0 %}
+                        {{ day }}
+                        {% if day_str in day_statuses %}
+                        <div class="status">{{ day_statuses[day_str] }}</div>
+                        {% endif %}
+                    {% endif %}
                 </td>
-                {% endif %}
                 {% endfor %}
             </tr>
             {% endfor %}
