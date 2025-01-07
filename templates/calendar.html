@@ -18,15 +18,25 @@
         }
         .today {
             border: 3px solid red;
-            background-color: #ccffcc;
+            background-color: #ccffcc; /* 今日が出勤中なら緑 */
+        }
+        .empty {
+            background-color: #f0f0f0;
         }
         .holiday, .weekend {
+            background-color: #ffcccc;
+        }
+        .status-holiday, .status-late, .status-early {
             background-color: #ffcccc;
         }
         .status {
             font-size: 14px;
             font-weight: bold;
             margin-top: 5px;
+        }
+        .contact-button {
+            margin-top: 10px;
+            display: inline-block;
         }
     </style>
 </head>
@@ -50,11 +60,16 @@
                 {% for day in week %}
                 {% if day == 0 %}
                 <td class="empty"></td>
-                {% else %}
-                {% set status = day_status.get(day, "勤務外") %}
-                <td class="{{ 'today' if day == today else 'holiday' if status in ['休み', '遅刻中', '早退済み'] else '' }}">
+                {% elif day == today %}
+                <td class="today">
                     {{ day }}
-                    <div class="status">{{ status }}</div>
+                    <div class="status">{{ today_status }}</div>
+                    <button class="contact-button">連絡する</button>
+                </td>
+                {% else %}
+                <td class="{{ 'holiday' if day_status[day] == '休み' else '' }}">
+                    {{ day }}
+                    <div class="status">{{ day_status[day] }}</div>
                 </td>
                 {% endif %}
                 {% endfor %}
