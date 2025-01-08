@@ -1,10 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, flash
 import datetime
 import pytz
 import json
 import os
 
 app = Flask(__name__)
+app.secret_key = "your_secret_key"
 
 # データ保存用のJSONファイル
 DATA_FILE = "data.json"
@@ -30,9 +31,9 @@ def get_today_status(date):
     """本日のステータスを取得する関数"""
     now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
 
-    # 日付が本日と一致しない場合は勤務外
+    # 日付が本日と一致しない場合は労働外
     if date != now.date():
-        return "勤務外"
+        return "労働外"
 
     # 「休み」の場合
     if date in holidays:
@@ -44,7 +45,7 @@ def get_today_status(date):
         if now.time() < late_time:
             return f"遅刻中 {late_time.strftime('%H:%M')}出勤予定"
         else:
-            return "勤務中"
+            return "労働中"
 
     # 「早退」の場合
     if str(date) in work_status["早退"]:
@@ -54,12 +55,12 @@ def get_today_status(date):
         else:
             return "早退済み"
 
-    # 勤務時間内かどうか
+    # 労働時間内かどうか
     if date.weekday() < 5 and datetime.time(9, 30) <= now.time() <= datetime.time(17, 30):
-        return "出勤中"
+        return "労働中"
 
     # 上記以外
-    return "勤務外"
+    return "労働外"
 
 @app.route("/")
 def calendar():
@@ -100,36 +101,42 @@ def manage():
     global holidays, work_status
 
     if request.method == "POST":
-        action = request.form.get("action")
-        date = request.form.get("date")
-        if not date:
-            return redirect(url_for("manage"))
+        try:
+            action = request.form.get("action")
+            date = request.form.get("date")
+            if not date:
+                flash("日付を選択してください", "error")
+                return redirect(url_for("manage"))
 
-        date = datetime.datetime.strptime(date, "%Y-%m-%d").date()
+            date = datetime.datetime.strptime(date, "%Y-%m-%d").date()
 
-        if action == "add_holiday":
-            if date not in holidays:
-                holidays.append(date)
-        elif action == "remove_holiday":
-            if date in holidays:
-                holidays.remove(date)
-        elif action == "add_late":
-            time = request.form.get("time")
-            if time:
-                work_status["遅刻"][str(date)] = time
-        elif action == "remove_late":
-            if str(date) in work_status["遅刻"]:
-                del work_status["遅刻"][str(date)]
-        elif action == "add_early":
-            time = request.form.get("time")
-            if time:
-                work_status["早退"][str(date)] = time
-        elif action == "remove_early":
-            if str(date) in work_status["早退"]:
-                del work_status["早退"][str(date)]
+            if action == "add_holiday":
+                if date not in holidays:
+                    holidays.append(date)
+            elif action == "remove_holiday":
+                if date in holidays:
+                    holidays.remove(date)
+            elif action == "add_late":
+                time = request.form.get("time")
+                if time:
+                    work_status["遅刻"][str(date)] = time
+            elif action == "remove_late":
+                if str(date) in work_status["遅刻"]:
+                    del work_status["遅刻"][str(date)]
+            elif action == "add_early":
+                time = request.form.get("time")
+                if time:
+                    work_status["早退"][str(date)] = time
+            elif action == "remove_early":
+                if str(date) in work_status["早退"]:
+                    del work_status["早退"][str(date)]
 
-        # データを保存
-        save_data({"holidays": holidays, "work_status": work_status})
+            # データを保存
+            save_data({"holidays": holidays, "work_status": work_status})
+
+            flash("情報を添加しました", "success")
+        except Exception as e:
+            flash(f"エラーが発生しました: {e}", "error")
 
         return redirect(url_for("manage"))
 
