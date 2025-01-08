@@ -2,3 +2,4 @@ Flask
 gunicorn
 jpholiday
 pytz
+psycopg2
