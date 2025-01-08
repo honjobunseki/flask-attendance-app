@@ -1,21 +1,34 @@
 from flask import Flask, render_template, request, redirect, url_for
 import datetime
 import pytz
-import os  # os モジュールをここで正しくインポート
+import json
+import os
 
 app = Flask(__name__)
 
-# グローバル変数
-holidays = []  # 祝日リスト
-work_status = {"休み": [], "遅刻": {}, "早退": {}}  # 勤務ステータス
+# データ保存用のJSONファイル
+DATA_FILE = "data.json"
+
+# データをロードする関数
+def load_data():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"holidays": [], "work_status": {"休み": [], "遅刻": {}, "早退": {}}}
+
+# データを保存する関数
+def save_data(data):
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+# 初期データのロード
+data = load_data()
+holidays = data["holidays"]
+work_status = data["work_status"]
 
 def get_today_status(date):
     """本日のステータスを取得する関数"""
     now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
-
-    # デバッグログを追加
-    print(f"Debug: 現在の日付 = {now.date()}, 時刻 = {now.time()}, 曜日 (0=月) = {now.weekday()}")
-    print(f"Debug: 渡された日付 = {date}, 曜日 (0=月) = {date.weekday()}")
 
     # 日付が本日と一致しない場合は勤務外
     if date != now.date():
@@ -115,11 +128,13 @@ def manage():
             if str(date) in work_status["早退"]:
                 del work_status["早退"][str(date)]
 
+        # データを保存
+        save_data({"holidays": holidays, "work_status": work_status})
+
         return redirect(url_for("manage"))
 
     return render_template("manage.html", holidays=holidays, work_status=work_status)
 
 if __name__ == "__main__":
-    # 必要な環境変数が設定されているか確認
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
