@@ -6,16 +6,14 @@
     <title>管理ページ</title>
 </head>
 <body>
-    <h1>出勤管理ページ</h1>
+    <h1>管理ページ</h1>
 
-    <!-- 休みの管理 -->
     <h2>休みを管理</h2>
     <form method="POST">
         <label for="date">日付:</label>
         <input type="date" name="date" required>
         <button type="submit" name="action" value="add_holiday">休みを追加</button>
     </form>
-    <h3>現在の休み一覧</h3>
     <ul>
         {% for holiday in holidays %}
         <li>
@@ -28,16 +26,14 @@
         {% endfor %}
     </ul>
 
-    <!-- 遅刻の管理 -->
     <h2>遅刻を管理</h2>
     <form method="POST">
         <label for="date">日付:</label>
         <input type="date" name="date" required>
-        <label for="time">出勤予定時間:</label>
+        <label for="time">遅刻時間:</label>
         <input type="time" name="time" required>
         <button type="submit" name="action" value="add_late">遅刻を追加</button>
     </form>
-    <h3>現在の遅刻一覧</h3>
     <ul>
         {% for date, time in work_status["遅刻"].items() %}
         <li>
@@ -50,16 +46,14 @@
         {% endfor %}
     </ul>
 
-    <!-- 早退の管理 -->
     <h2>早退を管理</h2>
     <form method="POST">
         <label for="date">日付:</label>
         <input type="date" name="date" required>
-        <label for="time">早退予定時間:</label>
+        <label for="time">早退時間:</label>
         <input type="time" name="time" required>
         <button type="submit" name="action" value="add_early">早退を追加</button>
     </form>
-    <h3>現在の早退一覧</h3>
     <ul>
         {% for date, time in work_status["早退"].items() %}
         <li>
