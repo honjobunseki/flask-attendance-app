@@ -31,9 +31,9 @@ def get_today_status(date):
     """本日のステータスを取得する関数"""
     now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
 
-    # 日付が本日と一致しない場合は労働外
+    # 日付が本日と一致しない場合は勤務外
     if date != now.date():
-        return "労働外"
+        return "勤務外"
 
     # 「休み」の場合
     if date in holidays:
@@ -45,7 +45,7 @@ def get_today_status(date):
         if now.time() < late_time:
             return f"遅刻中 {late_time.strftime('%H:%M')}出勤予定"
         else:
-            return "労働中"
+            return "勤務中"
 
     # 「早退」の場合
     if str(date) in work_status["早退"]:
@@ -55,12 +55,12 @@ def get_today_status(date):
         else:
             return "早退済み"
 
-    # 労働時間内かどうか
+    # 勤務時間内かどうか
     if date.weekday() < 5 and datetime.time(9, 30) <= now.time() <= datetime.time(17, 30):
-        return "労働中"
+        return "勤務中"
 
     # 上記以外
-    return "労働外"
+    return "勤務外"
 
 @app.route("/")
 def calendar():
