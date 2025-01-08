@@ -1,6 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 import datetime
-import pytz
 import psycopg2
 from psycopg2.extras import DictCursor
 import os
@@ -9,10 +8,13 @@ app = Flask(__name__)
 app.secret_key = "your_secret_key"
 
 # PostgreSQL接続設定
-DATABASE_URL = os.environ.get("DATABASE_URL")  # Renderの環境変数を使用
+DATABASE_URL = os.environ.get("DATABASE_URL")
+if not DATABASE_URL:
+    raise Exception("DATABASE_URL is not set. Please configure it in your Render environment.")
+
 conn = psycopg2.connect(DATABASE_URL, sslmode="require")
 
-# テーブル作成（初回実行時のみ）
+# テーブル作成
 def create_tables():
     with conn.cursor() as cur:
         cur.execute("""
@@ -33,7 +35,7 @@ create_tables()
 
 def get_today_status(date):
     """本日のステータスを取得する関数"""
-    now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
+    now = datetime.datetime.now(datetime.timezone.utc)
 
     # データベースから情報を取得
     with conn.cursor(cursor_factory=DictCursor) as cur:
@@ -145,7 +147,6 @@ def manage():
 
         return redirect(url_for("manage"))
 
-    # データの取得
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("SELECT * FROM holidays")
         holidays = cur.fetchall()
