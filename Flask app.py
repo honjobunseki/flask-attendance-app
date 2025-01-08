@@ -1,6 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for
 import datetime
-import jpholiday
+import pytz
 
 app = Flask(__name__)
 
@@ -8,87 +8,79 @@ app = Flask(__name__)
 holidays = []  # 祝日リスト
 work_status = {"休み": [], "遅刻": {}, "早退": {}}  # 勤務ステータス
 
-# カレンダーを生成する関数
-def get_calendar(year, month):
-    first_day = datetime.date(year, month, 1)
-    last_day = (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)) if month < 12 else datetime.date(year, 12, 31)
-    calendar = []
-    week = []
-    current_date = first_day
+def get_today_status(date):
+    """本日のステータスを取得する関数"""
+    now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
 
-    # 月曜日から始まるカレンダーのため調整
-    while current_date.weekday() != 0:
-        week.append(0)
-        current_date -= datetime.timedelta(days=1)
-    current_date = first_day
+    # デバッグログを追加
+    print(f"Debug: 現在の日付 = {now.date()}, 時刻 = {now.time()}, 曜日 (0=月) = {now.weekday()}")
+    print(f"Debug: 渡された日付 = {date}, 曜日 (0=月) = {date.weekday()}")
 
-    while current_date <= last_day:
-        week.append(current_date.day)
-        if len(week) == 7:
-            calendar.append(week)
-            week = []
-        current_date += datetime.timedelta(days=1)
-
-    # 最後の週の調整
-    while len(week) < 7:
-        week.append(0)
-    if week:
-        calendar.append(week)
-
-    return calendar
-
-# 本日のステータスを取得する関数
-def get_today_status(today):
-    now = datetime.datetime.now()
-    date_str = today.strftime("%Y-%m-%d")
+    # 日付が本日と一致しない場合は勤務外
+    if date != now.date():
+        return "勤務外"
 
     # 「休み」の場合
-    if today in holidays:
+    if date in holidays:
         return "休み"
 
     # 「遅刻」の場合
-    if date_str in work_status["遅刻"]:
-        late_time = datetime.datetime.strptime(work_status["遅刻"][date_str], "%H:%M").time()
-        if now.time() < late_time:  # 出勤予定時間前
-            return f"遅刻中 {late_time.strftime('%H:%M')} 出勤予定"
+    if str(date) in work_status["遅刻"]:
+        late_time = datetime.datetime.strptime(work_status["遅刻"][str(date)], "%H:%M").time()
+        if now.time() < late_time:
+            return f"遅刻中 {late_time.strftime('%H:%M')}出勤予定"
         else:
             return "勤務中"
 
     # 「早退」の場合
-    if date_str in work_status["早退"]:
-        early_time = datetime.datetime.strptime(work_status["早退"][date_str], "%H:%M").time()
-        if now.time() < early_time:  # 早退予定時間前
-            return f"{early_time.strftime('%H:%M')} 早退予定"
+    if str(date) in work_status["早退"]:
+        early_time = datetime.datetime.strptime(work_status["早退"][str(date)], "%H:%M").time()
+        if now.time() < early_time:
+            return f"{early_time.strftime('%H:%M')}早退予定"
         else:
             return "早退済み"
 
-    # 出勤中の時間帯（平日かつ勤務時間内）
-    if today.weekday() < 5 and datetime.time(9, 0) <= now.time() <= datetime.time(17, 30) and not jpholiday.is_holiday(today):
+    # 勤務時間内かどうか
+    if date.weekday() < 5 and datetime.time(9, 30) <= now.time() <= datetime.time(17, 30):
         return "出勤中"
 
     # 上記以外
     return "勤務外"
 
-# カレンダー表示ルート
 @app.route("/")
 def calendar():
     today = datetime.date.today()
     year, month = today.year, today.month
-    month_days = get_calendar(year, month)
 
-    # 本日のステータスのみ取得
+    # 月のカレンダーを生成
+    first_day = datetime.date(year, month, 1)
+    last_day = (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)) if month < 12 else datetime.date(year, 12, 31)
+    month_days = []
+    week = []
+    current_date = first_day
+
+    # 月曜日から始まるカレンダーに調整
+    while current_date.weekday() != 0:
+        week.append(0)
+        current_date -= datetime.timedelta(days=1)
+
+    current_date = first_day
+    while current_date <= last_day:
+        week.append(current_date.day)
+        if len(week) == 7:
+            month_days.append(week)
+            week = []
+        current_date += datetime.timedelta(days=1)
+
+    while len(week) < 7:
+        week.append(0)
+    if week:
+        month_days.append(week)
+
     today_status = get_today_status(today)
 
-    return render_template(
-        "calendar.html",
-        year=year,
-        month=month,
-        today=today.day,
-        month_days=month_days,
-        today_status=today_status
-    )
+    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status, holidays=holidays, work_status=work_status)
 
-# 管理ページルート
 @app.route("/manage", methods=["GET", "POST"])
 def manage():
     global holidays, work_status
@@ -110,17 +102,17 @@ def manage():
         elif action == "add_late":
             time = request.form.get("time")
             if time:
-                work_status["遅刻"][date.strftime("%Y-%m-%d")] = time
+                work_status["遅刻"][str(date)] = time
         elif action == "remove_late":
-            if date.strftime("%Y-%m-%d") in work_status["遅刻"]:
-                del work_status["遅刻"][date.strftime("%Y-%m-%d")]
+            if str(date) in work_status["遅刻"]:
+                del work_status["遅刻"][str(date)]
         elif action == "add_early":
             time = request.form.get("time")
             if time:
-                work_status["早退"][date.strftime("%Y-%m-%d")] = time
+                work_status["早退"][str(date)] = time
         elif action == "remove_early":
-            if date.strftime("%Y-%m-%d") in work_status["早退"]:
-                del work_status["早退"][date.strftime("%Y-%m-%d")]
+            if str(date) in work_status["早退"]:
+                del work_status["早退"][str(date)]
 
         return redirect(url_for("manage"))
 
