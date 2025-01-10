@@ -18,22 +18,23 @@
         }
         .today {
             border: 3px solid red;
+            background-color: #ffe6e6;
         }
         .holiday {
             background-color: #ffcccc;
         }
-        .status {
-            font-size: 0.9em;
-            color: #555;
-            margin-top: 5px;
-        }
         .empty {
             background-color: #f0f0f0;
+        }
+        .status {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #333;
         }
     </style>
 </head>
 <body>
-    <h1>{{ year }}年{{ month }}月</h1>
+    <h1>{{ year }}年{{ month }}月のカレンダー</h1>
     <table>
         <thead>
             <tr>
@@ -42,18 +43,18 @@
                 <th>水</th>
                 <th>木</th>
                 <th>金</th>
-                <th style="color:red;">土</th>
-                <th style="color:red;">日</th>
+                <th>土</th>
+                <th>日</th>
             </tr>
         </thead>
         <tbody>
             {% for week in month_days %}
             <tr>
-                {% for day, status in week %}
+                {% for day, status, is_holiday in week %}
                 {% if day == 0 %}
                 <td class="empty"></td>
                 {% else %}
-                <td class="{{ 'today' if day == today else '' }} {{ 'holiday' if status == '休み' else '' }}">
+                <td class="{% if is_holiday %}holiday{% elif day == today %}today{% endif %}">
                     <div>{{ day }}</div>
                     {% if status %}
                     <div class="status">{{ status }}</div>
