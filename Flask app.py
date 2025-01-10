@@ -16,8 +16,8 @@ if not DATABASE_URL:
 # データベース接続
 conn = psycopg2.connect(DATABASE_URL, sslmode="require")
 
-# 必要なテーブルを作成
 def create_tables():
+    """必要なテーブルを作成する"""
     with conn.cursor() as cur:
         cur.execute("""
         CREATE TABLE IF NOT EXISTS holidays (
@@ -36,15 +36,17 @@ def create_tables():
         """)
         conn.commit()
 
+# テーブル作成
 create_tables()
 
-# データベースからデータをロードする関数
 def load_holidays():
+    """休日データをロード"""
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("SELECT holiday_date FROM holidays;")
         return [row['holiday_date'] for row in cur.fetchall()]
 
 def load_work_status():
+    """勤務状態データをロード"""
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("SELECT status_date, status_type, time FROM work_status;")
         work_status = {"休み": [], "遅刻": {}, "早退": {}}
@@ -57,33 +59,38 @@ def load_work_status():
                 work_status["早退"][str(row['status_date'])] = row['time']
         return work_status
 
-# 初期データのロード
 holidays = load_holidays()
 work_status = load_work_status()
 
 def get_today_status(date):
+    """指定された日付のステータスを取得"""
     now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
 
+    # 日付に対応するステータスを取得
+    with conn.cursor(cursor_factory=DictCursor) as cur:
+        cur.execute("SELECT status_type, time FROM work_status WHERE status_date = %s", (date,))
+        rows = cur.fetchall()
+
+    # 日付が一致しない場合は勤務外
     if date != now.date():
         return "勤務外"
 
-    if date in holidays:
-        return "休み"
+    # 各ステータスを判定
+    for row in rows:
+        if row["status_type"] == "遅刻":
+            late_time = datetime.datetime.strptime(row["time"], "%H:%M").time()
+            if now.time() < late_time:
+                return f"遅刻中 {late_time.strftime('%H:%M')}出勤予定"
+            else:
+                return "勤務中"
+        elif row["status_type"] == "早退":
+            early_time = datetime.datetime.strptime(row["time"], "%H:%M").time()
+            if now.time() < early_time:
+                return f"{early_time.strftime('%H:%M')}早退予定"
+            else:
+                return "早退済み"
 
-    if str(date) in work_status["遅刻"]:
-        late_time = datetime.datetime.strptime(work_status["遅刻"][str(date)], "%H:%M").time()
-        if now.time() < late_time:
-            return f"遅刻中 {late_time.strftime('%H:%M')}出勤予定"
-        else:
-            return "勤務中"
-
-    if str(date) in work_status["早退"]:
-        early_time = datetime.datetime.strptime(work_status["早退"][str(date)], "%H:%M").time()
-        if now.time() < early_time:
-            return f"{early_time.strftime('%H:%M')}早退予定"
-        else:
-            return "早退済み"
-
+    # 勤務時間内
     if date.weekday() < 5 and datetime.time(9, 30) <= now.time() <= datetime.time(17, 30):
         return "勤務中"
 
@@ -94,6 +101,7 @@ def calendar():
     today = datetime.date.today()
     year, month = today.year, today.month
 
+    # 月のカレンダーを生成
     first_day = datetime.date(year, month, 1)
     last_day = (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)) if month < 12 else datetime.date(year, 12, 31)
     month_days = []
@@ -106,20 +114,20 @@ def calendar():
 
     current_date = first_day
     while current_date <= last_day:
-        week.append(current_date.day)
+        week.append((current_date.day, get_today_status(current_date)))
         if len(week) == 7:
             month_days.append(week)
             week = []
         current_date += datetime.timedelta(days=1)
 
     while len(week) < 7:
-        week.append(0)
+        week.append((0, ""))
     if week:
         month_days.append(week)
 
     today_status = get_today_status(today)
 
-    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status, holidays=holidays, work_status=work_status)
+    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
 
 @app.route("/manage", methods=["GET", "POST"])
 def manage():
@@ -143,31 +151,31 @@ def manage():
                 elif action == "add_late":
                     time = request.form.get("time")
                     if time:
-                        cur.execute(
-                            "INSERT INTO work_status (status_date, status_type, time) VALUES (%s, %s, %s) ON CONFLICT (status_date, status_type) DO UPDATE SET time = EXCLUDED.time;",
-                            (date, "遅刻", time)
-                        )
+                        cur.execute("""
+                            INSERT INTO work_status (status_date, status_type, time)
+                            VALUES (%s, %s, %s)
+                            ON CONFLICT (status_date, status_type) DO UPDATE SET time = EXCLUDED.time;
+                        """, (date, "遅刻", time))
                 elif action == "remove_late":
                     cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, "遅刻"))
                 elif action == "add_early":
                     time = request.form.get("time")
                     if time:
-                        cur.execute(
-                            "INSERT INTO work_status (status_date, status_type, time) VALUES (%s, %s, %s) ON CONFLICT (status_date, status_type) DO UPDATE SET time = EXCLUDED.time;",
-                            (date, "早退", time)
-                        )
+                        cur.execute("""
+                            INSERT INTO work_status (status_date, status_type, time)
+                            VALUES (%s, %s, %s)
+                            ON CONFLICT (status_date, status_type) DO UPDATE SET time = EXCLUDED.time;
+                        """, (date, "早退", time))
                 elif action == "remove_early":
                     cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, "早退"))
 
                 conn.commit()
 
-            # データをリロード
-            global holidays, work_status
             holidays = load_holidays()
             work_status = load_work_status()
-
             flash("情報を更新しました", "success")
         except Exception as e:
+            conn.rollback()
             flash(f"エラーが発生しました: {e}", "error")
 
         return redirect(url_for("manage"))
