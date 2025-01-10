@@ -62,57 +62,42 @@ def load_work_status():
 holidays = load_holidays()
 work_status = load_work_status()
 
-def get_today_status(date):
+def get_status(date):
     """指定された日付のステータスを取得"""
-    now = datetime.datetime.now(pytz.timezone("Asia/Tokyo")).date()
-    current_time = datetime.datetime.now(pytz.timezone("Asia/Tokyo")).time()
+    now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
+    is_past = date < now.date()
+    is_future = date > now.date()
 
-    # データベースからステータスを取得
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("SELECT status_type, time FROM work_status WHERE status_date = %s", (date,))
         rows = cur.fetchall()
 
-    # 過去の日付の場合
-    if date < now:
+    if rows:
+        statuses = []
         for row in rows:
             if row["status_type"] == "休み":
-                return "休み"
-            elif row["status_type"] == "早退":
-                return f"{row['time']} 早退済み"
-        # 遅刻や何もない場合は空白
-        return ""
-
-    # 未来の日付の場合
-    elif date > now:
-        for row in rows:
-            if row["status_type"] == "休み":
-                return "休み"
+                if is_past or is_future:
+                    return "休み"
             elif row["status_type"] == "遅刻":
-                return f"{row['time']} 出勤予定"
+                if is_past:
+                    return ""
+                elif is_future:
+                    statuses.append(f"{row['time']} 出勤予定")
             elif row["status_type"] == "早退":
-                return f"{row['time']} 早退予定"
-        # 休み・遅刻・早退がない場合は空白
+                if is_past:
+                    statuses.append(f"{row['time']} 早退済み")
+                elif is_future:
+                    statuses.append(f"{row['time']} 早退予定")
+
+        return " / ".join(statuses)
+
+    if is_past:
+        return ""
+    elif is_future:
         return ""
 
-    # 本日の場合
-    for row in rows:
-        if row["status_type"] == "休み":
-            return "休み"
-        elif row["status_type"] == "遅刻":
-            late_time = datetime.datetime.strptime(row["time"], "%H:%M").time()
-            if current_time < late_time:
-                return f"遅刻中 {late_time.strftime('%H:%M')} 出勤予定"
-            else:
-                return "勤務中"
-        elif row["status_type"] == "早退":
-            early_time = datetime.datetime.strptime(row["time"], "%H:%M").time()
-            if current_time < early_time:
-                return f"{early_time.strftime('%H:%M')} 早退予定"
-            else:
-                return "早退済み"
-
-    # 本日が平日の勤務時間内の場合
-    if date.weekday() < 5 and datetime.time(9, 30) <= current_time <= datetime.time(17, 30):
+    # 現在の勤務時間の判定
+    if now.date() == date and date.weekday() < 5 and datetime.time(9, 30) <= now.time() <= datetime.time(17, 30):
         return "勤務中"
 
     return "勤務外"
@@ -135,7 +120,7 @@ def calendar():
 
     current_date = first_day
     while current_date <= last_day:
-        week.append((current_date.day, get_today_status(current_date)))
+        week.append((current_date.day, get_status(current_date)))
         if len(week) == 7:
             month_days.append(week)
             week = []
@@ -146,7 +131,7 @@ def calendar():
     if week:
         month_days.append(week)
 
-    today_status = get_today_status(today)
+    today_status = get_status(today)
 
     return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
 
