@@ -53,7 +53,7 @@
                 {% if day == 0 %}
                 <td class="empty"></td>
                 {% else %}
-                <td class="{{ 'today' if day == today else '' }} {{ 'holiday' if '休み' in status else '' }}">
+                <td class="{{ 'today' if day == today else '' }} {{ 'holiday' if status == '休み' else '' }}">
                     <div>{{ day }}</div>
                     {% if status %}
                     <div class="status">{{ status }}</div>
