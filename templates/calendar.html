@@ -18,10 +18,10 @@
         }
         .today {
             border: 3px solid red;
-            background-color: #ffe6e6;
+            background-color: white; /* 本日は白い背景 */
         }
         .holiday {
-            background-color: #ffcccc;
+            background-color: #ffcccc; /* 土日祝日 */
         }
         .empty {
             background-color: #f0f0f0;
@@ -53,8 +53,22 @@
                 {% for day, status, is_holiday in week %}
                 {% if day == 0 %}
                 <td class="empty"></td>
+                {% elif day == today %}
+                <td class="today">
+                    <div>{{ day }}</div>
+                    {% if status %}
+                    <div class="status">{{ status }}</div>
+                    {% endif %}
+                </td>
+                {% elif is_holiday %}
+                <td class="holiday">
+                    <div>{{ day }}</div>
+                    {% if status %}
+                    <div class="status">{{ status }}</div>
+                    {% endif %}
+                </td>
                 {% else %}
-                <td class="{% if is_holiday %}holiday{% elif day == today %}today{% endif %}">
+                <td>
                     <div>{{ day }}</div>
                     {% if status %}
                     <div class="status">{{ status }}</div>
