@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>カレンダー</title>
+    <title>{{ year }}年{{ month }}月のカレンダー</title>
     <style>
         table {
             width: 100%;
@@ -12,26 +12,28 @@
         th, td {
             border: 1px solid black;
             text-align: center;
+            vertical-align: top;
             width: 14.28%;
             height: 100px;
-            vertical-align: top;
         }
         .today {
             border: 3px solid red;
-            background-color: #ffcccc; /* 今日を強調 */
+        }
+        .holiday {
+            background-color: #ffcccc;
+        }
+        .status {
+            font-size: 0.9em;
+            color: #555;
+            margin-top: 5px;
         }
         .empty {
             background-color: #f0f0f0;
         }
-        .status {
-            font-size: 14px;
-            font-weight: bold;
-            margin-top: 5px;
-        }
     </style>
 </head>
 <body>
-    <h1>{{ year }}年{{ month }}月のカレンダー</h1>
+    <h1>{{ year }}年{{ month }}月</h1>
     <table>
         <thead>
             <tr>
@@ -40,23 +42,23 @@
                 <th>水</th>
                 <th>木</th>
                 <th>金</th>
-                <th>土</th>
-                <th>日</th>
+                <th style="color:red;">土</th>
+                <th style="color:red;">日</th>
             </tr>
         </thead>
         <tbody>
             {% for week in month_days %}
             <tr>
-                {% for day in week %}
+                {% for day, status in week %}
                 {% if day == 0 %}
                 <td class="empty"></td>
-                {% elif day == today %}
-                <td class="today">
-                    {{ day }}
-                    <div class="status">{{ today_status }}</div>
-                </td>
                 {% else %}
-                <td>{{ day }}</td>
+                <td class="{{ 'today' if day == today else '' }} {{ 'holiday' if '休み' in status else '' }}">
+                    <div>{{ day }}</div>
+                    {% if status %}
+                    <div class="status">{{ status }}</div>
+                    {% endif %}
+                </td>
                 {% endif %}
                 {% endfor %}
             </tr>
