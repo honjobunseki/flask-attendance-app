@@ -116,19 +116,20 @@ def calendar():
     current_date = first_day
 
     while current_date.weekday() != 0:
-        week.append((0, ""))
+        week.append((0, "", False))  # (日付, ステータス, 休日フラグ)
         current_date -= datetime.timedelta(days=1)
 
     current_date = first_day
     while current_date <= last_day:
-        week.append((current_date.day, get_status(current_date)))
+        is_holiday = current_date.weekday() >= 5 or current_date in holidays
+        week.append((current_date.day, get_status(current_date), is_holiday))
         if len(week) == 7:
             month_days.append(week)
             week = []
         current_date += datetime.timedelta(days=1)
 
     while len(week) < 7:
-        week.append((0, ""))
+        week.append((0, "", False))
     if week:
         month_days.append(week)
 
