@@ -49,7 +49,10 @@
         }
     </style>
     <script>
-        function openEmailPopup(subject, body) {
+        function openEmailPopup(day, status) {
+            // メールの件名と本文を動的に設定
+            const subject = `${day} の連絡事項`;
+            const body = `日付: ${day}\n\nステータス: ${status || "特になし"}\n\n詳細を記入してください。`;
             const mailtoLink = `mailto:masato_o@mac.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
             window.open(mailtoLink, "_blank", "width=500,height=500");
         }
@@ -77,27 +80,27 @@
                             <td class="empty"></td> <!-- 空白セルをグレーで表示 -->
                         {% elif day == today %}
                             <td class="today">
-                                {{ day }}
+                                <div>{{ day }}</div>
                                 {% if status %}
                                     <div class="status">{{ status }}</div>
                                 {% endif %}
                                 <!-- 本日だけ「連絡する」ボタンを表示 -->
                                 <button 
                                     class="contact-btn" 
-                                    onclick="openEmailPopup('{{ year }}年{{ month }}月{{ day }}日の連絡事項', 'ここに詳細を記入してください。')">
+                                    onclick="openEmailPopup('{{ year }}年{{ month }}月{{ day }}日', '{{ status }}')">
                                     連絡する
                                 </button>
                             </td>
                         {% elif is_holiday %}
                             <td class="holiday">
-                                {{ day }}
+                                <div>{{ day }}</div>
                                 {% if status %}
                                     <div class="status">{{ status }}</div>
                                 {% endif %}
                             </td>
                         {% else %}
                             <td>
-                                {{ day }}
+                                <div>{{ day }}</div>
                                 {% if status %}
                                     <div class="status">{{ status }}</div>
                                 {% endif %}
