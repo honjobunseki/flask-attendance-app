@@ -1,65 +1,37 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ year }}年{{ month }}月のカレンダー</title>
-    <style>
-        table {
-            border-collapse: collapse;
-            width: 100%;
+<script>
+    async function sendEmail(day, status) {
+        try {
+            const response = await fetch("/send_email", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    date: day,
+                    status: status || "特になし"
+                })
+            });
+            const result = await response.json();
+            if (response.ok) {
+                alert("メールが送信されました！");
+            } else {
+                alert(`エラーが発生しました: ${result.error}`);
+            }
+        } catch (error) {
+            alert(`エラーが発生しました: ${error}`);
         }
-        th, td {
-            border: 1px solid black;
-            text-align: center;
-            padding: 10px;
-        }
-        .today {
-            background-color: white;
-            font-weight: bold;
-        }
-        .holiday {
-            background-color: red;
-            color: white;
-        }
-        .empty {
-            background-color: #f0f0f0;
-        }
-    </style>
-</head>
-<body>
-    <h1>{{ year }}年{{ month }}月のカレンダー</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>日</th>
-                <th>月</th>
-                <th>火</th>
-                <th>水</th>
-                <th>木</th>
-                <th>金</th>
-                <th>土</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for week in month_days %}
-            <tr>
-                {% for day, status, is_holiday, is_today in week %}
-                <td class="{% if day == 0 %}empty{% elif is_today %}today{% elif is_holiday %}holiday{% endif %}">
-                    {% if day != 0 %}
-                        <div>{{ day }}</div>
-                        {% if status %}
-                        <div>{{ status }}</div>
-                        {% if is_today %}
-                        <a href="{{ url_for('send_email', day=day) }}">連絡する</a>
-                        {% endif %}
-                        {% endif %}
-                    {% endif %}
-                </td>
-                {% endfor %}
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</body>
-</html>
+    }
+</script>
+
+<td class="today">
+    <div>{{ day }}</div>
+    {% if status %}
+        <div class="status">{{ status }}</div>
+    {% endif %}
+    <!-- 本日だけ「連絡する」ボタンを表示 -->
+    <button 
+        class="contact-btn" 
+        onclick="sendEmail('{{ year }}年{{ month }}月{{ day }}日', '{{ status }}')">
+        連絡する
+    </button>
+</td>
