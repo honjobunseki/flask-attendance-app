@@ -1,30 +1,17 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-import os
+from flask import Flask, render_template, request, redirect, url_for, flash
 import datetime
 import pytz
+import os
 import psycopg2
 from psycopg2.extras import DictCursor
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
 
-# Gmail APIのスコープ
-SCOPES = ['https://www.googleapis.com/auth/gmail.send']
-
-# 認証ファイルを環境変数から取得
-CREDENTIALS_JSON = os.environ.get("GOOGLE_CREDENTIALS")
-
-if not CREDENTIALS_JSON:
-    raise Exception("GOOGLE_CREDENTIALS is not set in the environment.")
-
 # データベース接続設定
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
-    raise Exception("DATABASE_URL is not set in the environment.")
+    raise Exception("DATABASE_URL is not set. Please configure it in your Render environment.")
 
 # データベース接続
 conn = psycopg2.connect(DATABASE_URL, sslmode="require")
@@ -150,43 +137,58 @@ def calendar():
 
     return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
 
-@app.route("/send_email", methods=["POST"])
-def send_email():
-    """Gmail APIを使ってメールを送信"""
-    date = request.json.get("date")
-    status = request.json.get("status")
+@app.route("/manage", methods=["GET", "POST"])
+def manage():
+    global holidays, work_status
 
-    if not date or not status:
-        return jsonify({"error": "Invalid data provided"}), 400
+    if request.method == "POST":
+        try:
+            action = request.form.get("action")
+            date = request.form.get("date")
+            if not date:
+                flash("日付を選択してください", "error")
+                return redirect(url_for("manage"))
 
-    creds = None
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_config(CREDENTIALS_JSON, SCOPES)
-            creds = flow.run_local_server(port=0)
-        # トークンを保存
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
+            date = datetime.datetime.strptime(date, "%Y-%m-%d").date()
 
-    service = build('gmail', 'v1', credentials=creds)
+            with conn.cursor() as cur:
+                if action == "add_holiday":
+                    cur.execute("INSERT INTO holidays (holiday_date) VALUES (%s) ON CONFLICT DO NOTHING;", (date,))
+                elif action == "remove_holiday":
+                    cur.execute("DELETE FROM holidays WHERE holiday_date = %s;", (date,))
+                elif action == "add_late":
+                    time = request.form.get("time")
+                    if time:
+                        cur.execute("""
+                            INSERT INTO work_status (status_date, status_type, time)
+                            VALUES (%s, %s, %s)
+                            ON CONFLICT (status_date, status_type) DO UPDATE SET time = EXCLUDED.time;
+                        """, (date, "遅刻", time))
+                elif action == "remove_late":
+                    cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, "遅刻"))
+                elif action == "add_early":
+                    time = request.form.get("time")
+                    if time:
+                        cur.execute("""
+                            INSERT INTO work_status (status_date, status_type, time)
+                            VALUES (%s, %s, %s)
+                            ON CONFLICT (status_date, status_type) DO UPDATE SET time = EXCLUDED.time;
+                        """, (date, "早退", time))
+                elif action == "remove_early":
+                    cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, "早退"))
 
-    # メールの作成
-    message = {
-        'raw': 'From: asbestos.kensa@gmail.com\n'
-               f'To: masato_o@mac.com\n'
-               f'Subject: {date} の連絡事項\n\n'
-               f'日付: {date}\n\nステータス: {status or "特になし"}\n\n詳細を記入してください。'
-    }
+                conn.commit()
 
-    try:
-        service.users().messages().send(userId="me", body=message).execute()
-        return jsonify({"message": "メールが送信されました！"}), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+            holidays = load_holidays()
+            work_status = load_work_status()
+            flash("情報を更新しました", "success")
+        except Exception as e:
+            conn.rollback()
+            flash(f"エラーが発生しました: {e}", "error")
+        finally:
+            return redirect(url_for("manage"))
+
+    return render_template("manage.html", holidays=holidays, work_status=work_status)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
