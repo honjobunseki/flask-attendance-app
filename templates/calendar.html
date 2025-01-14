@@ -42,11 +42,18 @@
             color: white;
             text-decoration: none;
             border-radius: 3px;
+            cursor: pointer;
         }
         .contact-btn:hover {
             background-color: #0056b3;
         }
     </style>
+    <script>
+        function openEmailPopup(subject, body) {
+            const mailtoLink = `mailto:masato_o@mac.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            window.open(mailtoLink, "_blank", "width=500,height=500");
+        }
+    </script>
 </head>
 <body>
     <h1>{{ year }}年{{ month }}月のカレンダー</h1>
@@ -75,9 +82,11 @@
                                     <div class="status">{{ status }}</div>
                                 {% endif %}
                                 <!-- 本日だけ「連絡する」ボタンを表示 -->
-                                <a class="contact-btn" href="mailto:masato_o@mac.com?subject=連絡事項&body={{ year }}年{{ month }}月{{ day }}日の連絡事項">
+                                <button 
+                                    class="contact-btn" 
+                                    onclick="openEmailPopup('{{ year }}年{{ month }}月{{ day }}日の連絡事項', 'ここに詳細を記入してください。')">
                                     連絡する
-                                </a>
+                                </button>
                             </td>
                         {% elif is_holiday %}
                             <td class="holiday">
