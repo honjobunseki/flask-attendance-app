@@ -3,33 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ year }}年{{ month }}月のカレンダー</title>
+    <title>カレンダー</title>
     <style>
         table {
             width: 100%;
             border-collapse: collapse;
         }
         th, td {
-            border: 1px solid black;
+            border: 1px solid #ccc;
             text-align: center;
-            vertical-align: top;
-            width: 14.28%;
-            height: 100px;
+            padding: 8px;
         }
-        .today {
-            border: 3px solid red;
-            background-color: white; /* 本日は白い背景 */
+        th {
+            background-color: #f2f2f2;
         }
         .holiday {
-            background-color: #ffcccc; /* 土日祝日 */
+            background-color: red;
+            color: white;
         }
-        .empty {
-            background-color: #f0f0f0;
+        .today {
+            background-color: white;
+            font-weight: bold;
         }
         .status {
             margin-top: 5px;
-            font-size: 12px;
-            color: #333;
+            font-size: 0.9em;
+            color: #555;
+        }
+        .contact-btn {
+            margin-top: 5px;
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 3px;
+        }
+        .contact-btn:hover {
+            background-color: #0056b3;
         }
     </style>
 </head>
@@ -49,34 +60,27 @@
         </thead>
         <tbody>
             {% for week in month_days %}
-            <tr>
-                {% for day, status, is_holiday in week %}
-                {% if day == 0 %}
-                <td class="empty"></td>
-                {% elif day == today %}
-                <td class="today">
-                    <div>{{ day }}</div>
-                    {% if status %}
-                    <div class="status">{{ status }}</div>
-                    {% endif %}
-                </td>
-                {% elif is_holiday %}
-                <td class="holiday">
-                    <div>{{ day }}</div>
-                    {% if status %}
-                    <div class="status">{{ status }}</div>
-                    {% endif %}
-                </td>
-                {% else %}
-                <td>
-                    <div>{{ day }}</div>
-                    {% if status %}
-                    <div class="status">{{ status }}</div>
-                    {% endif %}
-                </td>
-                {% endif %}
-                {% endfor %}
-            </tr>
+                <tr>
+                    {% for day, status, is_holiday in week %}
+                        {% if day == today %}
+                            <td class="today">
+                        {% elif is_holiday %}
+                            <td class="holiday">
+                        {% else %}
+                            <td>
+                        {% endif %}
+                            {% if day != 0 %}
+                                {{ day }}
+                                {% if status %}
+                                    <div class="status">{{ status }}</div>
+                                {% endif %}
+                                <a class="contact-btn" href="mailto:masato_o@mac.com?subject=連絡事項&body={{ year }}年{{ month }}月{{ day }}日の連絡事項">
+                                    連絡する
+                                </a>
+                            {% endif %}
+                        </td>
+                    {% endfor %}
+                </tr>
             {% endfor %}
         </tbody>
     </table>
