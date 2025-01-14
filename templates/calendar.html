@@ -1,37 +1,115 @@
-<script>
-    async function sendEmail(day, status) {
-        try {
-            const response = await fetch("/send_email", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    date: day,
-                    status: status || "特になし"
-                })
-            });
-            const result = await response.json();
-            if (response.ok) {
-                alert("メールが送信されました！");
-            } else {
-                alert(`エラーが発生しました: ${result.error}`);
-            }
-        } catch (error) {
-            alert(`エラーが発生しました: ${error}`);
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カレンダー</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
         }
-    }
-</script>
-
-<td class="today">
-    <div>{{ day }}</div>
-    {% if status %}
-        <div class="status">{{ status }}</div>
-    {% endif %}
-    <!-- 本日だけ「連絡する」ボタンを表示 -->
-    <button 
-        class="contact-btn" 
-        onclick="sendEmail('{{ year }}年{{ month }}月{{ day }}日', '{{ status }}')">
-        連絡する
-    </button>
-</td>
+        th, td {
+            border: 1px solid #ccc;
+            text-align: center;
+            padding: 8px;
+            height: 100px; /* 行の高さを固定 */
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .holiday {
+            background-color: red;
+            color: white;
+        }
+        .today {
+            background-color: white;
+            font-weight: bold;
+        }
+        .empty {
+            background-color: #eaeaea; /* グレーに塗りつぶし */
+        }
+        .status {
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #555;
+        }
+        .contact-btn {
+            margin-top: 5px;
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .contact-btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+    <script>
+        function openEmailPopup(day, status) {
+            // メールの件名と本文を動的に設定
+            const subject = `${day} の連絡事項`;
+            const body = `日付: ${day}\n\nステータス: ${status || "特になし"}\n\n詳細を記入してください。`;
+            const mailtoLink = `mailto:masato_o@mac.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+            window.open(mailtoLink, "_blank", "width=500,height=500");
+        }
+    </script>
+</head>
+<body>
+    <h1>{{ year }}年{{ month }}月のカレンダー</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>月</th>
+                <th>火</th>
+                <th>水</th>
+                <th>木</th>
+                <th>金</th>
+                <th>土</th>
+                <th>日</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for week in month_days %}
+                <tr>
+                    {% for day, status, is_holiday in week %}
+                        {% if day == 0 %}
+                            <td class="empty"></td> <!-- 空白セルをグレーで表示 -->
+                        {% elif day == today %}
+                            <td class="today">
+                                <div>{{ day }}</div>
+                                {% if status %}
+                                    <div class="status">{{ status }}</div>
+                                {% endif %}
+                                <!-- 本日だけ「連絡する」ボタンを表示 -->
+                                <button 
+                                    class="contact-btn" 
+                                    onclick="openEmailPopup('{{ year }}年{{ month }}月{{ day }}日', '{{ status }}')">
+                                    連絡する
+                                </button>
+                            </td>
+                        {% elif is_holiday %}
+                            <td class="holiday">
+                                <div>{{ day }}</div>
+                                {% if status %}
+                                    <div class="status">{{ status }}</div>
+                                {% endif %}
+                            </td>
+                        {% else %}
+                            <td>
+                                <div>{{ day }}</div>
+                                {% if status %}
+                                    <div class="status">{{ status }}</div>
+                                {% endif %}
+                            </td>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
