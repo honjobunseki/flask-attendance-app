@@ -2,8 +2,13 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 import datetime
 import pytz
 import os
+import json
+import base64
 import psycopg2
 from psycopg2.extras import DictCursor
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+from email.mime.text import MIMEText
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
@@ -61,6 +66,19 @@ def load_work_status():
 
 holidays = load_holidays()
 work_status = load_work_status()
+
+# Google Gmail API 設定
+credentials_info = json.loads(os.environ["GOOGLE_CREDENTIALS"])
+credentials = Credentials.from_service_account_info(credentials_info)
+service = build('gmail', 'v1', credentials=credentials)
+
+def send_email(to, subject, body):
+    """メールを送信する関数"""
+    message = MIMEText(body)
+    message['to'] = to
+    message['subject'] = subject
+    raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
+    service.users().messages().send(userId='me', body={'raw': raw_message}).execute()
 
 def get_status(date):
     """指定された日付のステータスを取得"""
@@ -182,14 +200,3 @@ def manage():
             holidays = load_holidays()
             work_status = load_work_status()
             flash("情報を更新しました", "success")
-        except Exception as e:
-            conn.rollback()
-            flash(f"エラーが発生しました: {e}", "error")
-
-        return redirect(url_for("manage"))
-
-    return render_template("manage.html", holidays=holidays, work_status=work_status)
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
