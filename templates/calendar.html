@@ -13,6 +13,7 @@
             border: 1px solid #ccc;
             text-align: center;
             padding: 8px;
+            height: 100px; /* 行の高さを固定 */
         }
         th {
             background-color: #f2f2f2;
@@ -24,6 +25,9 @@
         .today {
             background-color: white;
             font-weight: bold;
+        }
+        .empty {
+            background-color: #eaeaea; /* グレーに塗りつぶし */
         }
         .status {
             margin-top: 5px;
@@ -62,7 +66,9 @@
             {% for week in month_days %}
                 <tr>
                     {% for day, status, is_holiday in week %}
-                        {% if day == today %}
+                        {% if day == 0 %}
+                            <td class="empty"></td> <!-- 空白セルをグレーで表示 -->
+                        {% elif day == today %}
                             <td class="today">
                                 {{ day }}
                                 {% if status %}
