@@ -64,21 +64,30 @@
                     {% for day, status, is_holiday in week %}
                         {% if day == today %}
                             <td class="today">
-                        {% elif is_holiday %}
-                            <td class="holiday">
-                        {% else %}
-                            <td>
-                        {% endif %}
-                            {% if day != 0 %}
                                 {{ day }}
                                 {% if status %}
                                     <div class="status">{{ status }}</div>
                                 {% endif %}
+                                <!-- 本日だけ「連絡する」ボタンを表示 -->
                                 <a class="contact-btn" href="mailto:masato_o@mac.com?subject=連絡事項&body={{ year }}年{{ month }}月{{ day }}日の連絡事項">
                                     連絡する
                                 </a>
-                            {% endif %}
-                        </td>
+                            </td>
+                        {% elif is_holiday %}
+                            <td class="holiday">
+                                {{ day }}
+                                {% if status %}
+                                    <div class="status">{{ status }}</div>
+                                {% endif %}
+                            </td>
+                        {% else %}
+                            <td>
+                                {{ day }}
+                                {% if status %}
+                                    <div class="status">{{ status }}</div>
+                                {% endif %}
+                            </td>
+                        {% endif %}
                     {% endfor %}
                 </tr>
             {% endfor %}
