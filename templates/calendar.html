@@ -13,7 +13,7 @@
             border: 1px solid #ccc;
             text-align: center;
             padding: 8px;
-            height: 100px;
+            height: 100px; /* 行の高さを固定 */
         }
         th {
             background-color: #f2f2f2;
@@ -27,7 +27,7 @@
             font-weight: bold;
         }
         .empty {
-            background-color: #eaeaea;
+            background-color: #eaeaea; /* グレーに塗りつぶし */
         }
         .status {
             margin-top: 5px;
@@ -47,22 +47,81 @@
         .contact-btn:hover {
             background-color: #0056b3;
         }
+        #popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            background-color: white;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+        #popup-header {
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border-bottom: 1px solid #ccc;
+        }
+        #popup-content {
+            padding: 15px;
+        }
+        #popup-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+        #popup button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        #popup button:hover {
+            background-color: #0056b3;
+        }
     </style>
     <script>
-        function openContactPopup(day, status) {
-            // ポップアップウィンドウの設定
-            const url = `/contact?day=${encodeURIComponent(day)}&status=${encodeURIComponent(status || "")}`;
-            const popupWidth = 400;
-            const popupHeight = 300;
-            const left = (window.screen.width / 2) - (popupWidth / 2);
-            const top = (window.screen.height / 2) - (popupHeight / 2);
+        function openPopup(day) {
+            const popup = document.getElementById('popup');
+            const overlay = document.getElementById('popup-overlay');
+            const subjectField = document.getElementById('email-subject');
+            const bodyField = document.getElementById('email-body');
 
-            // ポップアップウィンドウを開く
-            window.open(
-                url,
-                "ContactPopup",
-                `width=${popupWidth},height=${popupHeight},top=${top},left=${left},resizable=no,scrollbars=no`
-            );
+            // 初期化
+            subjectField.value = `${day} の連絡事項`;
+            bodyField.value = `日付: ${day}\n\n詳細を記入してください。`;
+
+            popup.style.display = 'block';
+            overlay.style.display = 'block';
+        }
+
+        function closePopup() {
+            const popup = document.getElementById('popup');
+            const overlay = document.getElementById('popup-overlay');
+
+            popup.style.display = 'none';
+            overlay.style.display = 'none';
+        }
+
+        function sendEmail() {
+            const subject = document.getElementById('email-subject').value;
+            const body = document.getElementById('email-body').value;
+            const mailtoLink = `mailto:masato_o@mac.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+            // メールリンクを開く
+            window.open(mailtoLink, '_blank');
+            closePopup();
         }
     </script>
 </head>
@@ -85,7 +144,7 @@
                 <tr>
                     {% for day, status, is_holiday in week %}
                         {% if day == 0 %}
-                            <td class="empty"></td>
+                            <td class="empty"></td> <!-- 空白セルをグレーで表示 -->
                         {% elif day == today %}
                             <td class="today">
                                 <div>{{ day }}</div>
@@ -93,11 +152,7 @@
                                     <div class="status">{{ status }}</div>
                                 {% endif %}
                                 <!-- 本日だけ「連絡する」ボタンを表示 -->
-                                <button 
-                                    class="contact-btn" 
-                                    onclick="openContactPopup('{{ year }}年{{ month }}月{{ day }}日', '{{ status }}')">
-                                    連絡する
-                                </button>
+                                <button class="contact-btn" onclick="openPopup('{{ year }}年{{ month }}月{{ day }}日')">連絡する</button>
                             </td>
                         {% elif is_holiday %}
                             <td class="holiday">
@@ -119,5 +174,21 @@
             {% endfor %}
         </tbody>
     </table>
+
+    <!-- ポップアップウィンドウ -->
+    <div id="popup">
+        <div id="popup-header">
+            <span>メール作成</span>
+            <button style="float: right;" onclick="closePopup()">×</button>
+        </div>
+        <div id="popup-content">
+            <label for="email-subject">件名:</label><br>
+            <input type="text" id="email-subject" style="width: 100%; margin-bottom: 10px;"><br>
+            <label for="email-body">本文:</label><br>
+            <textarea id="email-body" style="width: 100%; height: 100px;"></textarea><br>
+            <button onclick="sendEmail()">送信する</button>
+        </div>
+    </div>
+    <div id="popup-overlay" onclick="closePopup()"></div>
 </body>
 </html>
