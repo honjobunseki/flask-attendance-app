@@ -27,22 +27,49 @@ def get_gmail_service():
     )
     return build("gmail", "v1", credentials=credentials)
 
-# ホームページ
 @app.route("/")
-def home():
-    return render_template("calendar.html")
+def calendar():
+    today = datetime.date.today()
+    year, month = today.year, today.month
+    first_day = datetime.date(year, month, 1)
+    last_day = (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)) if month < 12 else datetime.date(year, 12, 31)
 
-# メール送信エンドポイント
+    # カレンダーのデータ作成
+    month_days = []
+    week = []
+    current_date = first_day
+
+    # 前月の空白を追加
+    while current_date.weekday() != 0:
+        week.insert(0, (0, "", False))  # 空白セル
+        current_date -= datetime.timedelta(days=1)
+
+    current_date = first_day
+    while current_date <= last_day:
+        is_holiday = current_date.weekday() >= 5
+        week.append((current_date.day, "", is_holiday))
+        if len(week) == 7:
+            month_days.append(week)
+            week = []
+        current_date += datetime.timedelta(days=1)
+
+    # 残りの空白を追加
+    while len(week) < 7:
+        week.append((0, "", False))
+    if week:
+        month_days.append(week)
+
+    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days)
+
 @app.route("/send-email", methods=["POST"])
 def send_email():
     try:
-        # クライアントからデータを受け取る
         data = request.json
         subject = data.get("subject", "No Subject")
         body = data.get("body", "No Content")
         to = "masato_o@mac.com"
 
-        # Gmail APIを使用してメールを送信
+        # Gmail APIでメールを送信
         service = get_gmail_service()
         message = (
             f"To: {to}\r\n"
@@ -53,9 +80,9 @@ def send_email():
         encoded_message = {"raw": base64.urlsafe_b64encode(message.encode()).decode()}
         service.users().messages().send(userId="me", body=encoded_message).execute()
 
-        return jsonify({"success": f"Email sent to {to} with subject '{subject}'."})
+        return jsonify({"success": "メールが送信されました。"})
     except HttpError as error:
-        return jsonify({"error": f"An error occurred: {error}"}), 500
+        return jsonify({"error": f"エラーが発生しました: {error}"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
