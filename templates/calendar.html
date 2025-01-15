@@ -49,86 +49,14 @@
         }
     </style>
     <script>
-        function openEmailPopup(day, status) {
-            // 画面の幅と高さを取得して中央に配置
-            const width = 400;
-            const height = 300;
-            const left = (window.screen.width / 2) - (width / 2);
-            const top = (window.screen.height / 2) - (height / 2);
+        function openPopupWindow(day, status) {
+            const width = 500;
+            const height = 400;
+            const left = (window.innerWidth - width) / 2;
+            const top = (window.innerHeight - height) / 2;
 
-            // ポップアップウィンドウを中央に開く
-            const popup = window.open("", "_blank", `width=${width},height=${height},top=${top},left=${left}`);
-            popup.document.write(`
-                <!DOCTYPE html>
-                <html lang="ja">
-                <head>
-                    <meta charset="UTF-8">
-                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                    <title>メール作成</title>
-                    <style>
-                        body {
-                            font-family: Arial, sans-serif;
-                            padding: 20px;
-                            margin: 0;
-                            box-sizing: border-box;
-                        }
-                        h1 {
-                            font-size: 18px;
-                            margin-bottom: 10px;
-                        }
-                        label {
-                            display: block;
-                            margin-top: 10px;
-                            font-size: 14px;
-                            font-weight: bold;
-                        }
-                        input, textarea, button {
-                            width: 100%;
-                            margin-top: 5px;
-                            padding: 10px;
-                            font-size: 14px;
-                            border: 1px solid #ccc;
-                            border-radius: 5px;
-                            box-sizing: border-box;
-                        }
-                        textarea {
-                            height: 100px;
-                            resize: none;
-                        }
-                        button {
-                            background-color: #007bff;
-                            color: white;
-                            border: none;
-                            cursor: pointer;
-                            margin-top: 15px;
-                        }
-                        button:hover {
-                            background-color: #0056b3;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <h1>メール作成</h1>
-                    <form id="emailForm">
-                        <label for="subject">件名</label>
-                        <input type="text" id="subject" name="subject" value="${day} の連絡事項" required>
-                        
-                        <label for="body">本文</label>
-                        <textarea id="body" name="body">日付: ${day}\n\nステータス: ${status || "特になし"}\n\n詳細を記入してください。</textarea>
-                        
-                        <button type="button" onclick="sendEmail()">送信する</button>
-                    </form>
-                    <script>
-                        function sendEmail() {
-                            const subject = document.getElementById('subject').value;
-                            const body = document.getElementById('body').value;
-                            const mailtoLink = \`mailto:masato_o@mac.com?subject=\${encodeURIComponent(subject)}&body=\${encodeURIComponent(body)}\`;
-                            window.location.href = mailtoLink;
-                        }
-                    </script>
-                </body>
-                </html>
-            `);
+            const url = `/popup?day=${encodeURIComponent(day)}&status=${encodeURIComponent(status)}`;
+            window.open(url, "popupWindow", `width=${width},height=${height},top=${top},left=${left}`);
         }
     </script>
 </head>
@@ -161,7 +89,7 @@
                                 <!-- 本日だけ「連絡する」ボタンを表示 -->
                                 <button 
                                     class="contact-btn" 
-                                    onclick="openEmailPopup('{{ year }}年{{ month }}月{{ day }}日', '{{ status }}')">
+                                    onclick="openPopupWindow('{{ year }}年{{ month }}月{{ day }}日', '{{ status }}')">
                                     連絡する
                                 </button>
                             </td>
