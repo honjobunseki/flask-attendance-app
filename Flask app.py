@@ -1,8 +1,10 @@
 from flask import Flask, render_template, request, jsonify
+import datetime
+import pytz
 import os
+import base64
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
@@ -10,12 +12,12 @@ app.secret_key = "your_secret_key"
 # Gmail API スコープ設定
 SCOPES = ["https://www.googleapis.com/auth/gmail.send"]
 
-# 環境変数から認証情報を取得
+# Gmail API 認証情報（環境変数から取得）
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET")
 GOOGLE_REFRESH_TOKEN = os.environ.get("GOOGLE_REFRESH_TOKEN")
 
-# Gmail API用の認証情報を設定
+# Gmail API 用の認証情報を取得
 def get_gmail_service():
     credentials = Credentials.from_authorized_user_info(
         {
@@ -31,29 +33,29 @@ def get_gmail_service():
 def calendar():
     today = datetime.date.today()
     year, month = today.year, today.month
+
+    # カレンダー生成
     first_day = datetime.date(year, month, 1)
     last_day = (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)) if month < 12 else datetime.date(year, 12, 31)
-
-    # カレンダーのデータ作成
     month_days = []
     week = []
     current_date = first_day
 
-    # 前月の空白を追加
+    # 前月の日付分の空白を埋める
     while current_date.weekday() != 0:
         week.insert(0, (0, "", False))  # 空白セル
         current_date -= datetime.timedelta(days=1)
 
     current_date = first_day
     while current_date <= last_day:
-        is_holiday = current_date.weekday() >= 5
+        is_holiday = current_date.weekday() >= 5  # 土日判定
         week.append((current_date.day, "", is_holiday))
         if len(week) == 7:
             month_days.append(week)
             week = []
         current_date += datetime.timedelta(days=1)
 
-    # 残りの空白を追加
+    # 月末後の空白を埋める
     while len(week) < 7:
         week.append((0, "", False))
     if week:
@@ -69,7 +71,7 @@ def send_email():
         body = data.get("body", "No Content")
         to = "masato_o@mac.com"
 
-        # Gmail APIでメールを送信
+        # Gmail APIでメール送信
         service = get_gmail_service()
         message = (
             f"To: {to}\r\n"
@@ -81,8 +83,6 @@ def send_email():
         service.users().messages().send(userId="me", body=encoded_message).execute()
 
         return jsonify({"success": "メールが送信されました。"})
-    except HttpError as error:
-        return jsonify({"error": f"エラーが発生しました: {error}"}), 500
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
