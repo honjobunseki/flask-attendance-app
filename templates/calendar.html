@@ -13,7 +13,7 @@
             border: 1px solid #ccc;
             text-align: center;
             padding: 8px;
-            height: 100px;
+            height: 100px; /* 行の高さを固定 */
         }
         th {
             background-color: #f2f2f2;
@@ -49,13 +49,50 @@
         }
     </style>
     <script>
-        function openGmailPopup(day, status) {
-            // Gmail URLの生成
-            const email = "masato_o@mac.com";
-            const subject = `${day} の連絡事項`;
-            const body = `日付: ${day}\n\nステータス: ${status || "特になし"}\n\n詳細を記入してください。`;
-            const mailtoLink = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-            window.open(mailtoLink, "_blank", "width=600,height=600");
+        function openEmailPopup(day) {
+            // 件名と本文を入力するポップアップウィンドウを開く
+            const popup = window.open("", "_blank", "width=400,height=400");
+            popup.document.write(`
+                <html>
+                <head>
+                    <title>メール送信</title>
+                </head>
+                <body>
+                    <h3>${day} の連絡事項</h3>
+                    <form id="emailForm">
+                        <label for="subject">件名:</label><br>
+                        <input type="text" id="subject" name="subject" value="${day} の連絡事項" style="width: 90%;"><br><br>
+                        <label for="body">本文:</label><br>
+                        <textarea id="body" name="body" rows="10" style="width: 90%;"></textarea><br><br>
+                        <button type="button" onclick="sendEmail()">送信する</button>
+                    </form>
+                    <script>
+                        function sendEmail() {
+                            const subject = document.getElementById('subject').value;
+                            const body = document.getElementById('body').value;
+
+                            fetch('/send_email', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({ subject, body })
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                alert(data.message);
+                                if (data.message === 'メールを送信しました') {
+                                    window.close();
+                                }
+                            })
+                            .catch(error => {
+                                alert('エラーが発生しました: ' + error);
+                            });
+                        }
+                    </script>
+                </body>
+                </html>
+            `);
         }
     </script>
 </head>
@@ -88,7 +125,7 @@
                                 <!-- 本日だけ「連絡する」ボタンを表示 -->
                                 <button 
                                     class="contact-btn" 
-                                    onclick="openGmailPopup('{{ year }}年{{ month }}月{{ day }}日', '{{ status }}')">
+                                    onclick="openEmailPopup('{{ year }}年{{ month }}月{{ day }}日')">
                                     連絡する
                                 </button>
                             </td>
