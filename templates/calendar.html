@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>カレンダー</title>
     <style>
+        /* カレンダーのスタイル */
         table {
             width: 100%;
             border-collapse: collapse;
@@ -13,7 +14,7 @@
             border: 1px solid #ccc;
             text-align: center;
             padding: 8px;
-            height: 100px; /* 行の高さを固定 */
+            height: 100px;
         }
         th {
             background-color: #f2f2f2;
@@ -27,7 +28,7 @@
             font-weight: bold;
         }
         .empty {
-            background-color: #eaeaea; /* グレーに塗りつぶし */
+            background-color: #eaeaea;
         }
         .status {
             margin-top: 5px;
@@ -49,21 +50,21 @@
         }
     </style>
     <script>
-        function openEmailPopup(day) {
-            // 件名と本文を入力するポップアップウィンドウを開く
-            const popup = window.open("", "_blank", "width=400,height=400");
+        // ポップアップウィンドウを開く
+        function openEmailPopup() {
+            const popup = window.open("", "メール送信", "width=500,height=400");
             popup.document.write(`
                 <html>
                 <head>
                     <title>メール送信</title>
                 </head>
                 <body>
-                    <h3>${day} の連絡事項</h3>
+                    <h2>メールを送信</h2>
                     <form id="emailForm">
-                        <label for="subject">件名:</label><br>
-                        <input type="text" id="subject" name="subject" value="${day} の連絡事項" style="width: 90%;"><br><br>
-                        <label for="body">本文:</label><br>
-                        <textarea id="body" name="body" rows="10" style="width: 90%;"></textarea><br><br>
+                        <label>件名:</label><br>
+                        <input type="text" id="subject" style="width: 100%;"><br><br>
+                        <label>本文:</label><br>
+                        <textarea id="body" rows="10" style="width: 100%;"></textarea><br><br>
                         <button type="button" onclick="sendEmail()">送信する</button>
                     </form>
                     <script>
@@ -71,23 +72,13 @@
                             const subject = document.getElementById('subject').value;
                             const body = document.getElementById('body').value;
 
-                            fetch('/send_email', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
+                            fetch("/send_email", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
                                 body: JSON.stringify({ subject, body })
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                alert(data.message);
-                                if (data.message === 'メールを送信しました') {
-                                    window.close();
-                                }
-                            })
-                            .catch(error => {
-                                alert('エラーが発生しました: ' + error);
-                            });
+                            }).then(response => response.json())
+                              .then(data => alert(data.message))
+                              .catch(error => alert("エラー: " + error));
                         }
                     </script>
                 </body>
@@ -115,19 +106,14 @@
                 <tr>
                     {% for day, status, is_holiday in week %}
                         {% if day == 0 %}
-                            <td class="empty"></td> <!-- 空白セルをグレーで表示 -->
+                            <td class="empty"></td>
                         {% elif day == today %}
                             <td class="today">
                                 <div>{{ day }}</div>
                                 {% if status %}
                                     <div class="status">{{ status }}</div>
                                 {% endif %}
-                                <!-- 本日だけ「連絡する」ボタンを表示 -->
-                                <button 
-                                    class="contact-btn" 
-                                    onclick="openEmailPopup('{{ year }}年{{ month }}月{{ day }}日')">
-                                    連絡する
-                                </button>
+                                <button class="contact-btn" onclick="openEmailPopup()">連絡する</button>
                             </td>
                         {% elif is_holiday %}
                             <td class="holiday">
