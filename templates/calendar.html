@@ -13,7 +13,7 @@
             border: 1px solid #ccc;
             text-align: center;
             padding: 8px;
-            height: 100px; /* 行の高さを固定 */
+            height: 100px;
         }
         th {
             background-color: #f2f2f2;
@@ -25,11 +25,6 @@
         .today {
             background-color: white;
             font-weight: bold;
-        }
-        .status {
-            margin-top: 5px;
-            font-size: 0.9em;
-            color: #555;
         }
         .contact-btn {
             margin-top: 5px;
@@ -71,7 +66,7 @@
                 <tr>
                     {% for day, status, is_holiday in week %}
                         {% if day == 0 %}
-                            <td class="empty"></td> <!-- 空白セルをグレーで表示 -->
+                            <td class="empty"></td> <!-- 空白セル -->
                         {% elif day == today %}
                             <td class="today">
                                 <div>{{ day }}</div>
@@ -80,16 +75,10 @@
                         {% elif is_holiday %}
                             <td class="holiday">
                                 <div>{{ day }}</div>
-                                {% if status %}
-                                    <div class="status">{{ status }}</div>
-                                {% endif %}
                             </td>
                         {% else %}
                             <td>
                                 <div>{{ day }}</div>
-                                {% if status %}
-                                    <div class="status">{{ status }}</div>
-                                {% endif %}
                             </td>
                         {% endif %}
                     {% endfor %}
