@@ -49,14 +49,13 @@
         }
     </style>
     <script>
-        function openPopupWindow(day, status) {
-            const width = 500;
-            const height = 400;
-            const left = (window.innerWidth - width) / 2;
-            const top = (window.innerHeight - height) / 2;
-
+        function openPopup(day, status) {
+            const popupWidth = 500;
+            const popupHeight = 400;
+            const left = (window.innerWidth - popupWidth) / 2;
+            const top = (window.innerHeight - popupHeight) / 2;
             const url = `/popup?day=${encodeURIComponent(day)}&status=${encodeURIComponent(status)}`;
-            window.open(url, "popupWindow", `width=${width},height=${height},top=${top},left=${left}`);
+            window.open(url, "_blank", `width=${popupWidth},height=${popupHeight},left=${left},top=${top}`);
         }
     </script>
 </head>
@@ -89,7 +88,7 @@
                                 <!-- 本日だけ「連絡する」ボタンを表示 -->
                                 <button 
                                     class="contact-btn" 
-                                    onclick="openPopupWindow('{{ year }}年{{ month }}月{{ day }}日', '{{ status }}')">
+                                    onclick="openPopup('{{ year }}年{{ month }}月{{ day }}日', '{{ status }}')">
                                     連絡する
                                 </button>
                             </td>
