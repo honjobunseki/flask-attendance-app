@@ -67,7 +67,6 @@ def get_status(date):
     now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
 
     if date > now.date():
-        # 未来の日付
         status = []
         if date in holidays:
             status.append("休み")
@@ -76,17 +75,13 @@ def get_status(date):
         if str(date) in work_status["早退"]:
             status.append(f"{work_status['早退'][str(date)]} 早退予定")
         return " / ".join(status) if status else ""
-
     elif date < now.date():
-        # 過去の日付
         if date in holidays:
             return "休み"
         if str(date) in work_status["早退"]:
             return f"{work_status['早退'][str(date)]} 早退済み"
         return ""
-
     else:
-        # 本日
         if date in holidays:
             return "休み"
         if str(date) in work_status["遅刻"]:
@@ -108,7 +103,6 @@ def calendar():
     today = datetime.date.today()
     year, month = today.year, today.month
 
-    # 月のカレンダーを生成
     first_day = datetime.date(year, month, 1)
     last_day = (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)) if month < 12 else datetime.date(year, 12, 31)
     month_days = []
@@ -116,7 +110,7 @@ def calendar():
     current_date = first_day
 
     while current_date.weekday() != 0:
-        week.append((0, "", False))  # (日付, ステータス, 休日フラグ)
+        week.append((0, "", False))
         current_date -= datetime.timedelta(days=1)
 
     current_date = first_day
@@ -139,74 +133,9 @@ def calendar():
 
 @app.route("/popup")
 def popup():
-    """ポップアップウィンドウを表示"""
     day = request.args.get("day", "不明な日付")
     status = request.args.get("status", "特になし")
     return render_template("popup.html", day=day, status=status)
-
-@app.route("/send_email", methods=["POST"])
-def send_email():
-    """Gmail APIを使用してメールを送信する処理"""
-    subject = request.form.get("subject")
-    body = request.form.get("body")
-    recipient = "masato_o@mac.com"
-
-    # Gmail APIでメールを送信する処理（簡略化）
-    flash(f"メールが送信されました: {recipient}", "success")
-    return redirect("/")
-
-@app.route("/manage", methods=["GET", "POST"])
-def manage():
-    global holidays, work_status
-
-    if request.method == "POST":
-        try:
-            action = request.form.get("action")
-            date = request.form.get("date")
-            if not date:
-                flash("日付を選択してください", "error")
-                return redirect(url_for("manage"))
-
-            date = datetime.datetime.strptime(date, "%Y-%m-%d").date()
-
-            with conn.cursor() as cur:
-                if action == "add_holiday":
-                    cur.execute("INSERT INTO holidays (holiday_date) VALUES (%s) ON CONFLICT DO NOTHING;", (date,))
-                elif action == "remove_holiday":
-                    cur.execute("DELETE FROM holidays WHERE holiday_date = %s;", (date,))
-                elif action == "add_late":
-                    time = request.form.get("time")
-                    if time:
-                        cur.execute("""
-                            INSERT INTO work_status (status_date, status_type, time)
-                            VALUES (%s, %s, %s)
-                            ON CONFLICT (status_date, status_type) DO UPDATE SET time = EXCLUDED.time;
-                        """, (date, "遅刻", time))
-                elif action == "remove_late":
-                    cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, "遅刻"))
-                elif action == "add_early":
-                    time = request.form.get("time")
-                    if time:
-                        cur.execute("""
-                            INSERT INTO work_status (status_date, status_type, time)
-                            VALUES (%s, %s, %s)
-                            ON CONFLICT (status_date, status_type) DO UPDATE SET time = EXCLUDED.time;
-                        """, (date, "早退", time))
-                elif action == "remove_early":
-                    cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, "早退"))
-
-                conn.commit()
-
-            holidays = load_holidays()
-            work_status = load_work_status()
-            flash("情報を更新しました", "success")
-        except Exception as e:
-            conn.rollback()
-            flash(f"エラーが発生しました: {e}", "error")
-        finally:
-            return redirect(url_for("manage"))
-
-    return render_template("manage.html", holidays=holidays, work_status=work_status)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
