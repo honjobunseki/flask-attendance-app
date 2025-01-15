@@ -46,7 +46,7 @@
         }
     </style>
     <script>
-        function openPopup(day, status) {
+        function openPopup(day) {
             const popup = window.open("", "メール送信", "width=400,height=400");
             popup.document.write(`
                 <html lang="ja">
@@ -58,7 +58,7 @@
                     <form id="emailForm">
                         <label>件名: <input type="text" id="subject" value="${day}の連絡事項"></label><br><br>
                         <label>本文:</label><br>
-                        <textarea id="body" rows="10" cols="30">日付: ${day}\nステータス: ${status || "特になし"}\n\n詳細を記入してください。</textarea><br><br>
+                        <textarea id="body" rows="10" cols="30">日付: ${day}\n詳細を記入してください。</textarea><br><br>
                         <button type="button" onclick="sendEmail()">送信する</button>
                     </form>
                     <script>
@@ -105,32 +105,21 @@
         <tbody>
             {% for week in month_days %}
                 <tr>
-                    {% for day, status, is_holiday in week %}
+                    {% for day, _, is_holiday in week %}
                         {% if day == 0 %}
                             <td class="empty"></td>
                         {% elif day == today %}
                             <td class="today">
                                 <div>{{ day }}</div>
-                                {% if status %}
-                                    <div class="status">{{ status }}</div>
-                                {% endif %}
-                                <button class="contact-btn" onclick="openPopup('{{ year }}年{{ month }}月{{ day }}日', '{{ status }}')">
-                                    連絡する
-                                </button>
+                                <button class="contact-btn" onclick="openPopup('{{ year }}年{{ month }}月{{ day }}日')">連絡する</button>
                             </td>
                         {% elif is_holiday %}
                             <td class="holiday">
                                 <div>{{ day }}</div>
-                                {% if status %}
-                                    <div class="status">{{ status }}</div>
-                                {% endif %}
                             </td>
                         {% else %}
                             <td>
                                 <div>{{ day }}</div>
-                                {% if status %}
-                                    <div class="status">{{ status }}</div>
-                                {% endif %}
                             </td>
                         {% endif %}
                     {% endfor %}
