@@ -47,44 +47,8 @@
     </style>
     <script>
         function openPopup(day) {
-            const popup = window.open("", "メール送信", "width=400,height=400");
-            popup.document.write(`
-                <html lang="ja">
-                <head>
-                    <title>メール作成</title>
-                </head>
-                <body>
-                    <h3>${day}のメール作成</h3>
-                    <form id="emailForm">
-                        <label>件名: <input type="text" id="subject" value="${day}の連絡事項"></label><br><br>
-                        <label>本文:</label><br>
-                        <textarea id="body" rows="10" cols="30">日付: ${day}\n詳細を記入してください。</textarea><br><br>
-                        <button type="button" onclick="sendEmail()">送信する</button>
-                    </form>
-                    <script>
-                        function sendEmail() {
-                            const subject = document.getElementById('subject').value;
-                            const body = document.getElementById('body').value;
-
-                            fetch('/send-email', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ subject, body })
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    alert(data.success);
-                                    window.close();
-                                } else {
-                                    alert(data.error || 'メール送信に失敗しました。');
-                                }
-                            });
-                        }
-                    </script>
-                </body>
-                </html>
-            `);
+            // ポップアップウィンドウを開く
+            window.open(`/popup?day=${encodeURIComponent(day)}`, "連絡する", "width=400,height=400");
         }
     </script>
 </head>
@@ -105,9 +69,9 @@
         <tbody>
             {% for week in month_days %}
                 <tr>
-                    {% for day, _, is_holiday in week %}
+                    {% for day, status, is_holiday in week %}
                         {% if day == 0 %}
-                            <td class="empty"></td>
+                            <td class="empty"></td> <!-- 空白セルをグレーで表示 -->
                         {% elif day == today %}
                             <td class="today">
                                 <div>{{ day }}</div>
@@ -116,10 +80,16 @@
                         {% elif is_holiday %}
                             <td class="holiday">
                                 <div>{{ day }}</div>
+                                {% if status %}
+                                    <div class="status">{{ status }}</div>
+                                {% endif %}
                             </td>
                         {% else %}
                             <td>
                                 <div>{{ day }}</div>
+                                {% if status %}
+                                    <div class="status">{{ status }}</div>
+                                {% endif %}
                             </td>
                         {% endif %}
                     {% endfor %}
