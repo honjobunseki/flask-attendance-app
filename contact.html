@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>連絡フォーム</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        textarea {
+            width: 100%;
+            height: 100px;
+        }
+        button {
+            padding: 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>連絡フォーム</h1>
+    <form action="/send_email" method="POST">
+        <input type="hidden" name="date" value="{{ date }}">
+        <label for="subject">件名</label>
+        <input type="text" id="subject" name="subject" value="{{ date }}の連絡事項">
+        <label for="body">本文</label>
+        <textarea id="body" name="body">ステータス: {{ status }}</textarea>
+        <button type="submit">送信する</button>
+    </form>
+</body>
+</html>
