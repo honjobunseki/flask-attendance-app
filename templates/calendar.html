@@ -1,6 +1,13 @@
 <script>
     function openEmailPopup(day, status) {
-        const popup = window.open("", "_blank", "width=400,height=300");
+        // 画面の幅と高さを取得
+        const width = 400; // ポップアップウィンドウの幅
+        const height = 300; // ポップアップウィンドウの高さ
+        const left = (window.screen.width / 2) - (width / 2); // 中央に配置するための計算
+        const top = (window.screen.height / 2) - (height / 2); // 中央に配置するための計算
+
+        // ポップアップウィンドウを中央に開く
+        const popup = window.open("", "_blank", `width=${width},height=${height},top=${top},left=${left}`);
         popup.document.write(`
             <!DOCTYPE html>
             <html lang="ja">
