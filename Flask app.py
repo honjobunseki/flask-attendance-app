@@ -151,7 +151,7 @@ def send_email():
     body = request.form.get("body")
     recipient = "masato_o@mac.com"
 
-    # Gmail APIでメールを送信する処理（省略、設定済みと仮定）
+    # Gmail APIでメールを送信する処理（簡略化）
     flash(f"メールが送信されました: {recipient}", "success")
     return redirect("/")
 
