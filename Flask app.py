@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, flash, jsonify
+from flask import Flask, render_template, request, jsonify
 import datetime
 import pytz
 import os
@@ -128,6 +128,42 @@ def send_email():
         return jsonify({"success": True, "message": "メールを送信しました"})
     except Exception as e:
         return jsonify({"success": False, "message": f"メール送信中にエラーが発生しました: {e}"})
+
+def get_status(date):
+    """指定された日付のステータスを取得"""
+    now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
+
+    if date > now.date():
+        status = []
+        if date in holidays:
+            status.append("休み")
+        if str(date) in work_status["遅刻"]:
+            status.append(f"{work_status['遅刻'][str(date)]} 出勤予定")
+        if str(date) in work_status["早退"]:
+            status.append(f"{work_status['早退'][str(date)]} 早退予定")
+        return " / ".join(status) if status else ""
+    elif date < now.date():
+        if date in holidays:
+            return "休み"
+        if str(date) in work_status["早退"]:
+            return f"{work_status['早退'][str(date)]} 早退済み"
+        return ""
+    else:
+        if date in holidays:
+            return "休み"
+        if str(date) in work_status["遅刻"]:
+            late_time = datetime.datetime.strptime(work_status["遅刻"][str(date)], "%H:%M").time()
+            if now.time() < late_time:
+                return f"遅刻中 {late_time.strftime('%H:%M')} 出勤予定"
+        if str(date) in work_status["早退"]:
+            early_time = datetime.datetime.strptime(work_status["早退"][str(date)], "%H:%M").time()
+            if now.time() < early_time:
+                return f"{early_time.strftime('%H:%M')} 早退予定"
+            else:
+                return "早退済み"
+        if date.weekday() < 5 and datetime.time(9, 30) <= now.time() <= datetime.time(17, 30):
+            return "勤務中"
+        return "勤務外"
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
