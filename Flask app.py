@@ -4,6 +4,8 @@ import pytz
 import os
 import psycopg2
 from psycopg2.extras import DictCursor
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
@@ -136,6 +138,31 @@ def popup():
     day = request.args.get("day", "不明な日付")
     status = request.args.get("status", "特になし")
     return render_template("popup.html", day=day, status=status)
+
+@app.route("/send_email", methods=["POST"])
+def send_email():
+    """メールを送信する"""
+    subject = request.form.get("subject", "No Subject")
+    body = request.form.get("body", "No Content")
+    recipient = "masato_o@mac.com"
+
+    try:
+        # Gmail API を使ってメールを送信する処理
+        SCOPES = ['https://www.googleapis.com/auth/gmail.send']
+        credentials = service_account.Credentials.from_service_account_file(
+            'credentials.json', scopes=SCOPES)
+        service = build('gmail', 'v1', credentials=credentials)
+
+        message = {
+            'raw': f'From: asbestos.kensa@gmail.com\nTo: {recipient}\nSubject: {subject}\n\n{body}'
+        }
+
+        service.users().messages().send(userId='me', body=message).execute()
+        flash("メールを送信しました", "success")
+    except Exception as e:
+        flash(f"メール送信中にエラーが発生しました: {e}", "error")
+
+    return redirect(url_for("calendar"))
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
