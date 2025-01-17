@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, flash, jsonify
 import datetime
 import pytz
 import os
@@ -6,6 +6,7 @@ import psycopg2
 from psycopg2.extras import DictCursor
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
+import base64
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
@@ -64,42 +65,6 @@ def load_work_status():
 holidays = load_holidays()
 work_status = load_work_status()
 
-def get_status(date):
-    """指定された日付のステータスを取得"""
-    now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
-
-    if date > now.date():
-        status = []
-        if date in holidays:
-            status.append("休み")
-        if str(date) in work_status["遅刻"]:
-            status.append(f"{work_status['遅刻'][str(date)]} 出勤予定")
-        if str(date) in work_status["早退"]:
-            status.append(f"{work_status['早退'][str(date)]} 早退予定")
-        return " / ".join(status) if status else ""
-    elif date < now.date():
-        if date in holidays:
-            return "休み"
-        if str(date) in work_status["早退"]:
-            return f"{work_status['早退'][str(date)]} 早退済み"
-        return ""
-    else:
-        if date in holidays:
-            return "休み"
-        if str(date) in work_status["遅刻"]:
-            late_time = datetime.datetime.strptime(work_status["遅刻"][str(date)], "%H:%M").time()
-            if now.time() < late_time:
-                return f"遅刻中 {late_time.strftime('%H:%M')} 出勤予定"
-        if str(date) in work_status["早退"]:
-            early_time = datetime.datetime.strptime(work_status["早退"][str(date)], "%H:%M").time()
-            if now.time() < early_time:
-                return f"{early_time.strftime('%H:%M')} 早退予定"
-            else:
-                return "早退済み"
-        if date.weekday() < 5 and datetime.time(9, 30) <= now.time() <= datetime.time(17, 30):
-            return "勤務中"
-        return "勤務外"
-
 @app.route("/")
 def calendar():
     today = datetime.date.today()
@@ -153,16 +118,16 @@ def send_email():
             'credentials.json', scopes=SCOPES)
         service = build('gmail', 'v1', credentials=credentials)
 
-        message = {
-            'raw': f'From: asbestos.kensa@gmail.com\nTo: {recipient}\nSubject: {subject}\n\n{body}'
-        }
+        # メールを作成
+        message = f"From: asbestos.kensa@gmail.com\nTo: {recipient}\nSubject: {subject}\n\n{body}"
+        encoded_message = base64.urlsafe_b64encode(message.encode("utf-8")).decode("utf-8")
+        send_message = {'raw': encoded_message}
 
-        service.users().messages().send(userId='me', body=message).execute()
-        flash("メールを送信しました", "success")
+        # Gmail APIを使って送信
+        service.users().messages().send(userId='me', body=send_message).execute()
+        return jsonify({"success": True, "message": "メールを送信しました"})
     except Exception as e:
-        flash(f"メール送信中にエラーが発生しました: {e}", "error")
-
-    return redirect(url_for("calendar"))
+        return jsonify({"success": False, "message": f"メール送信中にエラーが発生しました: {e}"})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
