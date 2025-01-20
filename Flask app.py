@@ -4,6 +4,9 @@ import datetime
 import pytz
 import psycopg2
 from psycopg2.extras import DictCursor
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
@@ -54,7 +57,7 @@ def load_work_status():
         work_status = {"休み": [], "遅刻": {}, "早退": {}, "外出中": {}, "休憩中": []}
         for row in cur.fetchall():
             if row['status_type'] == "休み":
-                work_status["休み"].append(row['status_date'])
+                work_status["休み"].append(row['holiday_date'])
             elif row['status_type'] == "遅刻":
                 work_status["遅刻"][str(row['status_date'])] = row['time']
             elif row['status_type'] == "早退":
@@ -71,30 +74,12 @@ def load_work_status():
 holidays = load_holidays()
 work_status = load_work_status()
 
-def get_status(date):
-    """指定された日付のステータスを取得"""
-    now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
-
-    if date in holidays:
-        return "休み"
-    if str(date) in work_status["外出中"]:
-        status = "外出中"
-        if work_status["外出中"][str(date)]["go_home"]:
-            status += " 直帰予定"
-        return status
-    if str(date) in work_status["遅刻"]:
-        return f"遅刻中 {work_status['遅刻'][str(date)]} 出勤予定"
-    if str(date) in work_status["早退"]:
-        return f"{work_status['早退'][str(date)]} 早退予定"
-    if str(date) in work_status["休憩中"]:
-        return "休憩中"
-    return "勤務中"
-
 @app.route("/")
 def calendar():
     today = datetime.date.today()
     year, month = today.year, today.month
 
+    # カレンダー生成
     first_day = datetime.date(year, month, 1)
     last_day = (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)) if month < 12 else datetime.date(year, 12, 31)
     month_days = []
@@ -108,7 +93,7 @@ def calendar():
     current_date = first_day
     while current_date <= last_day:
         is_holiday = current_date.weekday() >= 5 or current_date in holidays
-        week.append((current_date.day, get_status(current_date), is_holiday))
+        week.append((current_date.day, "勤務中", is_holiday))  # 簡易的に"勤務中"を表示
         if len(week) == 7:
             month_days.append(week)
             week = []
@@ -119,9 +104,7 @@ def calendar():
     if week:
         month_days.append(week)
 
-    today_status = get_status(today)
-
-    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
+    return render_template("calendar.html", year=year, month=month, month_days=month_days)
 
 @app.route("/popup")
 def popup():
@@ -131,18 +114,14 @@ def popup():
 
 @app.route("/send_email", methods=["POST"])
 def send_email():
-    """メール送信機能"""
+    """メールを送信する"""
     subject = request.form.get("subject", "No Subject")
     body = request.form.get("body", "No Content")
-    recipient = "example@example.com"  # 修正する場合は適切な宛先に変更
+    recipient = "masato_o@mac.com"
     sender = "your-email@gmail.com"
-    app_password = "your-app-password"
+    app_password = "your-app-password"  # アプリパスワードを設定
 
     try:
-        import smtplib
-        from email.mime.text import MIMEText
-        from email.mime.multipart import MIMEMultipart
-
         msg = MIMEMultipart()
         msg['From'] = sender
         msg['To'] = recipient
@@ -159,5 +138,5 @@ def send_email():
     return redirect(url_for("calendar"))
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    port = int(os.environ.get("PORT", 5000))  # Render指定ポート
+    app.run(host="0.0.0.0", port=port)  # 外部アクセスを許可
