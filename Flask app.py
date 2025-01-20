@@ -17,14 +17,17 @@ if not DATABASE_URL:
 conn = psycopg2.connect(DATABASE_URL, sslmode="require")
 
 def create_tables():
-    """必要なテーブルを作成する"""
+    """必要なテーブルを作成または更新する"""
     with conn.cursor() as cur:
+        # holidays テーブル作成
         cur.execute("""
         CREATE TABLE IF NOT EXISTS holidays (
             id SERIAL PRIMARY KEY,
             holiday_date DATE NOT NULL UNIQUE
         );
         """)
+
+        # work_status テーブル作成
         cur.execute("""
         CREATE TABLE IF NOT EXISTS work_status (
             id SERIAL PRIMARY KEY,
@@ -36,6 +39,35 @@ def create_tables():
             UNIQUE (status_date, status_type)
         );
         """)
+
+        # work_status に return_time カラムがない場合追加
+        cur.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'work_status' AND column_name = 'return_time'
+            ) THEN
+                ALTER TABLE work_status ADD COLUMN return_time VARCHAR(10);
+            END IF;
+        END $$;
+        """)
+
+        # work_status に go_home カラムがない場合追加
+        cur.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1
+                FROM information_schema.columns
+                WHERE table_name = 'work_status' AND column_name = 'go_home'
+            ) THEN
+                ALTER TABLE work_status ADD COLUMN go_home BOOLEAN DEFAULT FALSE;
+            END IF;
+        END $$;
+        """)
+
         conn.commit()
 
 # テーブル作成
@@ -48,10 +80,13 @@ def load_holidays():
         return [row['holiday_date'] for row in cur.fetchall()]
 
 def load_work_status():
-    """勤務状態データをロード"""
+    """労働状態データをロード"""
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("SELECT status_date, status_type, time, return_time, go_home FROM work_status;")
-        work_status = {"休み": [], "遅刻": {}, "早退": {}, "外出中": {}, "休憩中": []}
+        work_status = {
+            "休み": [], "遅刻": {}, "早退": {},
+            "外出中": {}, "休憩中": []
+        }
         for row in cur.fetchall():
             if row['status_type'] == "休み":
                 work_status["休み"].append(row['status_date'])
@@ -71,57 +106,9 @@ def load_work_status():
 holidays = load_holidays()
 work_status = load_work_status()
 
-def get_status(date):
-    """指定された日付のステータスを取得"""
-    now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
-
-    if str(date) in work_status["外出中"]:
-        return_time = work_status["外出中"][str(date)]["return_time"]
-        go_home = work_status["外出中"][str(date)]["go_home"]
-        if go_home:
-            return "外出中 直帰予定"
-        elif return_time:
-            return f"外出中 戻り予定 {return_time}"
-        else:
-            return "外出中"
-
-    if date in work_status["休憩中"]:
-        return "休憩中"
-
-    if date > now.date():
-        status = []
-        if date in holidays:
-            status.append("休み")
-        if str(date) in work_status["遅刻"]:
-            status.append(f"{work_status['遅刻'][str(date)]} 出勤予定")
-        if str(date) in work_status["早退"]:
-            status.append(f"{work_status['早退'][str(date)]} 早退予定")
-        return " / ".join(status) if status else ""
-    elif date < now.date():
-        if date in holidays:
-            return "休み"
-        if str(date) in work_status["早退"]:
-            return f"{work_status['早退'][str(date)]} 早退済み"
-        return ""
-    else:
-        if date in holidays:
-            return "休み"
-        if str(date) in work_status["遅刻"]:
-            late_time = datetime.datetime.strptime(work_status["遅刻"][str(date)], "%H:%M").time()
-            if now.time() < late_time:
-                return f"遅刻中 {late_time.strftime('%H:%M')} 出勤予定"
-        if str(date) in work_status["早退"]:
-            early_time = datetime.datetime.strptime(work_status["早退"][str(date)], "%H:%M").time()
-            if now.time() < early_time:
-                return f"{early_time.strftime('%H:%M')} 早退予定"
-            else:
-                return "早退済み"
-        if date.weekday() < 5 and datetime.time(9, 30) <= now.time() <= datetime.time(17, 30):
-            return "勤務中"
-        return "勤務外"
-
 @app.route("/manage", methods=["GET", "POST"])
 def manage():
+    """労働状態の管理画面"""
     global holidays, work_status
 
     if request.method == "POST":
@@ -147,6 +134,8 @@ def manage():
                             VALUES (%s, %s, %s)
                             ON CONFLICT (status_date, status_type) DO UPDATE SET time = EXCLUDED.time;
                         """, (date, "遅刻", time))
+                elif action == "remove_late":
+                    cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, "遅刻"))
                 elif action == "add_early":
                     time = request.form.get("time")
                     if time:
@@ -155,9 +144,11 @@ def manage():
                             VALUES (%s, %s, %s)
                             ON CONFLICT (status_date, status_type) DO UPDATE SET time = EXCLUDED.time;
                         """, (date, "早退", time))
+                elif action == "remove_early":
+                    cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, "早退"))
                 elif action == "add_out":
                     return_time = request.form.get("return_time")
-                    go_home = bool(request.form.get("go_home"))
+                    go_home = request.form.get("go_home") == "on"
                     cur.execute("""
                         INSERT INTO work_status (status_date, status_type, return_time, go_home)
                         VALUES (%s, %s, %s, %s)
@@ -166,11 +157,7 @@ def manage():
                 elif action == "remove_out":
                     cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, "外出中"))
                 elif action == "add_break":
-                    cur.execute("""
-                        INSERT INTO work_status (status_date, status_type)
-                        VALUES (%s, %s)
-                        ON CONFLICT DO NOTHING;
-                    """, (date, "休憩中"))
+                    cur.execute("INSERT INTO work_status (status_date, status_type) VALUES (%s, %s) ON CONFLICT DO NOTHING;", (date, "休憩中"))
                 elif action == "remove_break":
                     cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, "休憩中"))
 
