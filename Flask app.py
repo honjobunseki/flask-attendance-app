@@ -4,13 +4,18 @@ import pytz
 import os
 import psycopg2
 from psycopg2.extras import DictCursor
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-import json
-import base64
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
+
+# SMTP 設定
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SMTP_EMAIL = os.environ.get("SMTP_EMAIL")  # 環境変数から取得
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")  # 環境変数から取得
 
 # データベース接続設定
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -146,22 +151,23 @@ def send_email():
     """メールを送信する"""
     subject = request.form.get("subject", "No Subject")
     body = request.form.get("body", "No Content")
-    recipient = "masato_o@mac.com"
+    recipient = "masato_o@mac.com"  # 宛先メールアドレス
 
     try:
-        # Gmail API を使ってメールを送信する処理
-        SCOPES = ['https://www.googleapis.com/auth/gmail.send']
-        credentials_info = json.loads(os.environ["GOOGLE_CREDENTIALS"])
-        credentials = service_account.Credentials.from_service_account_info(
-            credentials_info, scopes=SCOPES
-        )
-        service = build('gmail', 'v1', credentials=credentials)
+        # メールの構築
+        msg = MIMEMultipart()
+        msg["From"] = SMTP_EMAIL
+        msg["To"] = recipient
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain"))
 
-        message = f"From: asbestos.kensa@gmail.com\nTo: {recipient}\nSubject: {subject}\n\n{body}"
-        encoded_message = base64.urlsafe_b64encode(message.encode("utf-8")).decode("utf-8")
-        send_message = {'raw': encoded_message}
+        # SMTP サーバーに接続してメールを送信
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()  # 暗号化
+        server.login(SMTP_EMAIL, SMTP_PASSWORD)
+        server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
+        server.quit()
 
-        service.users().messages().send(userId='me', body=send_message).execute()
         flash("メールを送信しました", "success")
     except Exception as e:
         flash(f"メール送信中にエラーが発生しました: {e}", "error")
@@ -169,5 +175,4 @@ def send_email():
     return redirect(url_for("calendar"))
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True)
