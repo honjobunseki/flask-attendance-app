@@ -3,22 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>メール送信完了</title>
+    <title>送信完了</title>
     <style>
         body {
             font-family: Arial, sans-serif;
             text-align: center;
             padding: 20px;
         }
-        .message {
-            font-size: 20px;
-            color: #333;
+        h1 {
+            color: green;
+        }
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            color: white;
+            background-color: #007bff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
         }
     </style>
+    <script>
+        function closeWindow() {
+            window.close();
+        }
+    </script>
 </head>
 <body>
-    <div class="message">
-        {{ message }}
-    </div>
+    <h1>メール送信が完了しました</h1>
+    <button onclick="closeWindow()">閉じる</button>
 </body>
 </html>
