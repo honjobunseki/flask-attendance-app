@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash
 import datetime
 import pytz
 import os
@@ -167,63 +167,10 @@ def send_email():
             server.login(SMTP_EMAIL, SMTP_PASSWORD)
             server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
         
-        return render_template("popup.html", message="送信が完了しました", day=None, status=None)
+        # 送信完了後に sent.html を表示
+        return render_template("sent.html", message="メール送信が完了しました")
     except Exception as e:
-        return render_template("popup.html", message=f"メール送信中にエラーが発生しました: {e}", day=None, status=None)
-
-# 管理画面
-@app.route("/manage", methods=["GET", "POST"])
-def manage():
-    global holidays, work_status
-
-    if request.method == "POST":
-        try:
-            action = request.form.get("action")
-            date = request.form.get("date")
-            if not date:
-                flash("日付を選択してください", "error")
-                return redirect(url_for("manage"))
-
-            date = datetime.datetime.strptime(date, "%Y-%m-%d").date()
-
-            with conn.cursor() as cur:
-                if action == "add_holiday":
-                    cur.execute("INSERT INTO holidays (holiday_date) VALUES (%s) ON CONFLICT DO NOTHING;", (date,))
-                elif action == "remove_holiday":
-                    cur.execute("DELETE FROM holidays WHERE holiday_date = %s;", (date,))
-                elif action == "add_late":
-                    time = request.form.get("time")
-                    if time:
-                        cur.execute("""
-                            INSERT INTO work_status (status_date, status_type, time)
-                            VALUES (%s, %s, %s)
-                            ON CONFLICT (status_date, status_type) DO UPDATE SET time = EXCLUDED.time;
-                        """, (date, "遅刻", time))
-                elif action == "remove_late":
-                    cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, "遅刻"))
-                elif action == "add_early":
-                    time = request.form.get("time")
-                    if time:
-                        cur.execute("""
-                            INSERT INTO work_status (status_date, status_type, time)
-                            VALUES (%s, %s, %s)
-                            ON CONFLICT (status_date, status_type) DO UPDATE SET time = EXCLUDED.time;
-                        """, (date, "早退", time))
-                elif action == "remove_early":
-                    cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, "早退"))
-
-                conn.commit()
-
-            holidays = load_holidays()
-            work_status = load_work_status()
-            flash("情報を更新しました", "success")
-        except Exception as e:
-            conn.rollback()
-            flash(f"エラーが発生しました: {e}", "error")
-        finally:
-            return redirect(url_for("manage"))
-
-    return render_template("manage.html", holidays=holidays, work_status=work_status)
+        return render_template("sent.html", message=f"メール送信中にエラーが発生しました: {e}")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
