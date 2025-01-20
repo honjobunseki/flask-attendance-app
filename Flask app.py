@@ -1,12 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 import os
-import datetime
-import pytz
 import psycopg2
 from psycopg2.extras import DictCursor
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import datetime
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
@@ -19,6 +15,7 @@ if not DATABASE_URL:
 # データベース接続
 conn = psycopg2.connect(DATABASE_URL, sslmode="require")
 
+# 初期化
 def create_tables():
     """必要なテーブルを作成する"""
     with conn.cursor() as cur:
@@ -33,15 +30,13 @@ def create_tables():
             id SERIAL PRIMARY KEY,
             status_date DATE NOT NULL,
             status_type VARCHAR(20) NOT NULL,
-            time VARCHAR(10),
-            return_time VARCHAR(10),
+            return_time TIME,
             go_home BOOLEAN DEFAULT FALSE,
             UNIQUE (status_date, status_type)
         );
         """)
         conn.commit()
 
-# テーブル作成
 create_tables()
 
 def load_holidays():
@@ -53,22 +48,20 @@ def load_holidays():
 def load_work_status():
     """勤務状態データをロード"""
     with conn.cursor(cursor_factory=DictCursor) as cur:
-        cur.execute("SELECT status_date, status_type, time, return_time, go_home FROM work_status;")
-        work_status = {"休み": [], "遅刻": {}, "早退": {}, "外出中": {}, "休憩中": []}
+        cur.execute("""
+        SELECT status_date, status_type, return_time, go_home FROM work_status;
+        """)
+        work_status = {"休み": [], "遅刻": {}, "早退": {}, "外出中": {}, "休憩中": {}}
         for row in cur.fetchall():
             if row['status_type'] == "休み":
-                work_status["休み"].append(row['holiday_date'])
-            elif row['status_type'] == "遅刻":
-                work_status["遅刻"][str(row['status_date'])] = row['time']
-            elif row['status_type'] == "早退":
-                work_status["早退"][str(row['status_date'])] = row['time']
+                work_status["休み"].append(row['status_date'])
             elif row['status_type'] == "外出中":
                 work_status["外出中"][str(row['status_date'])] = {
                     "return_time": row['return_time'],
                     "go_home": row['go_home']
                 }
             elif row['status_type'] == "休憩中":
-                work_status["休憩中"].append(row['status_date'])
+                work_status["休憩中"][str(row['status_date'])] = True
         return work_status
 
 holidays = load_holidays()
@@ -79,21 +72,22 @@ def calendar():
     today = datetime.date.today()
     year, month = today.year, today.month
 
-    # カレンダー生成
     first_day = datetime.date(year, month, 1)
     last_day = (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)) if month < 12 else datetime.date(year, 12, 31)
     month_days = []
     week = []
     current_date = first_day
 
+    # 前月の日付を補完
     while current_date.weekday() != 0:
-        week.append((0, "", False))
+        week.insert(0, (0, "", False))
         current_date -= datetime.timedelta(days=1)
 
     current_date = first_day
     while current_date <= last_day:
         is_holiday = current_date.weekday() >= 5 or current_date in holidays
-        week.append((current_date.day, "勤務中", is_holiday))  # 簡易的に"勤務中"を表示
+        status = get_status(current_date)
+        week.append((current_date.day, status, is_holiday))
         if len(week) == 7:
             month_days.append(week)
             week = []
@@ -112,31 +106,44 @@ def popup():
     status = request.args.get("status", "特になし")
     return render_template("popup.html", day=day, status=status)
 
-@app.route("/send_email", methods=["POST"])
-def send_email():
-    """メールを送信する"""
-    subject = request.form.get("subject", "No Subject")
-    body = request.form.get("body", "No Content")
-    recipient = "masato_o@mac.com"
-    sender = "your-email@gmail.com"
-    app_password = "your-app-password"  # アプリパスワードを設定
+@app.route("/manage", methods=["GET", "POST"])
+def manage():
+    """管理画面"""
+    if request.method == "POST":
+        status_date = request.form.get("date")
+        status_type = request.form.get("status_type")
+        return_time = request.form.get("return_time")
+        go_home = request.form.get("go_home") == "on"
 
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = sender
-        msg['To'] = recipient
-        msg['Subject'] = subject
-        msg.attach(MIMEText(body, 'plain'))
+        try:
+            with conn.cursor() as cur:
+                cur.execute("""
+                INSERT INTO work_status (status_date, status_type, return_time, go_home)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (status_date, status_type)
+                DO UPDATE SET return_time = EXCLUDED.return_time, go_home = EXCLUDED.go_home;
+                """, (status_date, status_type, return_time, go_home))
+                conn.commit()
+            flash("ステータスを更新しました", "success")
+        except Exception as e:
+            flash(f"エラーが発生しました: {e}", "error")
+        return redirect(url_for("manage"))
 
-        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
-            server.login(sender, app_password)
-            server.sendmail(sender, recipient, msg.as_string())
-        flash("メールを送信しました", "success")
-    except Exception as e:
-        flash(f"メール送信中にエラーが発生しました: {e}", "error")
+    return render_template("manage.html", holidays=holidays, work_status=work_status)
 
-    return redirect(url_for("calendar"))
+def get_status(date):
+    """指定された日付のステータスを取得"""
+    if date in holidays:
+        return "休み"
+    if str(date) in work_status["外出中"]:
+        out = work_status["外出中"][str(date)]
+        if out["go_home"]:
+            return "外出中 直帰予定"
+        return "外出中"
+    if str(date) in work_status["休憩中"]:
+        return "休憩中"
+    return "勤務中"
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Render指定ポート
-    app.run(host="0.0.0.0", port=port)  # 外部アクセスを許可
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
