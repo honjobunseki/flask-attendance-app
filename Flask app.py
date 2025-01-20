@@ -173,5 +173,6 @@ def send_email():
         return render_template("sent.html", message=f"メール送信中にエラーが発生しました: {e}")
 
 if __name__ == "__main__":
+    # デプロイ環境でポートを適切にバインド
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", port=port, debug=False)
