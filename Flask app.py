@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
+import os
 import datetime
 import pytz
-import os
 import psycopg2
 from psycopg2.extras import DictCursor
 
@@ -17,17 +17,14 @@ if not DATABASE_URL:
 conn = psycopg2.connect(DATABASE_URL, sslmode="require")
 
 def create_tables():
-    """必要なテーブルを作成または更新する"""
+    """必要なテーブルを作成する"""
     with conn.cursor() as cur:
-        # holidays テーブル作成
         cur.execute("""
         CREATE TABLE IF NOT EXISTS holidays (
             id SERIAL PRIMARY KEY,
             holiday_date DATE NOT NULL UNIQUE
         );
         """)
-
-        # work_status テーブル作成
         cur.execute("""
         CREATE TABLE IF NOT EXISTS work_status (
             id SERIAL PRIMARY KEY,
@@ -39,35 +36,6 @@ def create_tables():
             UNIQUE (status_date, status_type)
         );
         """)
-
-        # work_status に return_time カラムがない場合追加
-        cur.execute("""
-        DO $$
-        BEGIN
-            IF NOT EXISTS (
-                SELECT 1
-                FROM information_schema.columns
-                WHERE table_name = 'work_status' AND column_name = 'return_time'
-            ) THEN
-                ALTER TABLE work_status ADD COLUMN return_time VARCHAR(10);
-            END IF;
-        END $$;
-        """)
-
-        # work_status に go_home カラムがない場合追加
-        cur.execute("""
-        DO $$
-        BEGIN
-            IF NOT EXISTS (
-                SELECT 1
-                FROM information_schema.columns
-                WHERE table_name = 'work_status' AND column_name = 'go_home'
-            ) THEN
-                ALTER TABLE work_status ADD COLUMN go_home BOOLEAN DEFAULT FALSE;
-            END IF;
-        END $$;
-        """)
-
         conn.commit()
 
 # テーブル作成
@@ -80,13 +48,10 @@ def load_holidays():
         return [row['holiday_date'] for row in cur.fetchall()]
 
 def load_work_status():
-    """労働状態データをロード"""
+    """勤務状態データをロード"""
     with conn.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("SELECT status_date, status_type, time, return_time, go_home FROM work_status;")
-        work_status = {
-            "休み": [], "遅刻": {}, "早退": {},
-            "外出中": {}, "休憩中": []
-        }
+        work_status = {"休み": [], "遅刻": {}, "早退": {}, "外出中": {}, "休憩中": []}
         for row in cur.fetchall():
             if row['status_type'] == "休み":
                 work_status["休み"].append(row['status_date'])
@@ -106,73 +71,92 @@ def load_work_status():
 holidays = load_holidays()
 work_status = load_work_status()
 
-@app.route("/manage", methods=["GET", "POST"])
-def manage():
-    """労働状態の管理画面"""
-    global holidays, work_status
+def get_status(date):
+    """指定された日付のステータスを取得"""
+    now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
 
-    if request.method == "POST":
-        try:
-            action = request.form.get("action")
-            date = request.form.get("date")
-            if not date:
-                flash("日付を選択してください", "error")
-                return redirect(url_for("manage"))
+    if date in holidays:
+        return "休み"
+    if str(date) in work_status["外出中"]:
+        status = "外出中"
+        if work_status["外出中"][str(date)]["go_home"]:
+            status += " 直帰予定"
+        return status
+    if str(date) in work_status["遅刻"]:
+        return f"遅刻中 {work_status['遅刻'][str(date)]} 出勤予定"
+    if str(date) in work_status["早退"]:
+        return f"{work_status['早退'][str(date)]} 早退予定"
+    if str(date) in work_status["休憩中"]:
+        return "休憩中"
+    return "勤務中"
 
-            date = datetime.datetime.strptime(date, "%Y-%m-%d").date()
+@app.route("/")
+def calendar():
+    today = datetime.date.today()
+    year, month = today.year, today.month
 
-            with conn.cursor() as cur:
-                if action == "add_holiday":
-                    cur.execute("INSERT INTO holidays (holiday_date) VALUES (%s) ON CONFLICT DO NOTHING;", (date,))
-                elif action == "remove_holiday":
-                    cur.execute("DELETE FROM holidays WHERE holiday_date = %s;", (date,))
-                elif action == "add_late":
-                    time = request.form.get("time")
-                    if time:
-                        cur.execute("""
-                            INSERT INTO work_status (status_date, status_type, time)
-                            VALUES (%s, %s, %s)
-                            ON CONFLICT (status_date, status_type) DO UPDATE SET time = EXCLUDED.time;
-                        """, (date, "遅刻", time))
-                elif action == "remove_late":
-                    cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, "遅刻"))
-                elif action == "add_early":
-                    time = request.form.get("time")
-                    if time:
-                        cur.execute("""
-                            INSERT INTO work_status (status_date, status_type, time)
-                            VALUES (%s, %s, %s)
-                            ON CONFLICT (status_date, status_type) DO UPDATE SET time = EXCLUDED.time;
-                        """, (date, "早退", time))
-                elif action == "remove_early":
-                    cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, "早退"))
-                elif action == "add_out":
-                    return_time = request.form.get("return_time")
-                    go_home = request.form.get("go_home") == "on"
-                    cur.execute("""
-                        INSERT INTO work_status (status_date, status_type, return_time, go_home)
-                        VALUES (%s, %s, %s, %s)
-                        ON CONFLICT (status_date, status_type) DO UPDATE SET return_time = EXCLUDED.return_time, go_home = EXCLUDED.go_home;
-                    """, (date, "外出中", return_time, go_home))
-                elif action == "remove_out":
-                    cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, "外出中"))
-                elif action == "add_break":
-                    cur.execute("INSERT INTO work_status (status_date, status_type) VALUES (%s, %s) ON CONFLICT DO NOTHING;", (date, "休憩中"))
-                elif action == "remove_break":
-                    cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, "休憩中"))
+    first_day = datetime.date(year, month, 1)
+    last_day = (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)) if month < 12 else datetime.date(year, 12, 31)
+    month_days = []
+    week = []
+    current_date = first_day
 
-                conn.commit()
+    while current_date.weekday() != 0:
+        week.append((0, "", False))
+        current_date -= datetime.timedelta(days=1)
 
-            holidays = load_holidays()
-            work_status = load_work_status()
-            flash("情報を更新しました", "success")
-        except Exception as e:
-            conn.rollback()
-            flash(f"エラーが発生しました: {e}", "error")
-        finally:
-            return redirect(url_for("manage"))
+    current_date = first_day
+    while current_date <= last_day:
+        is_holiday = current_date.weekday() >= 5 or current_date in holidays
+        week.append((current_date.day, get_status(current_date), is_holiday))
+        if len(week) == 7:
+            month_days.append(week)
+            week = []
+        current_date += datetime.timedelta(days=1)
 
-    return render_template("manage.html", holidays=holidays, work_status=work_status)
+    while len(week) < 7:
+        week.append((0, "", False))
+    if week:
+        month_days.append(week)
+
+    today_status = get_status(today)
+
+    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
+
+@app.route("/popup")
+def popup():
+    day = request.args.get("day", "不明な日付")
+    status = request.args.get("status", "特になし")
+    return render_template("popup.html", day=day, status=status)
+
+@app.route("/send_email", methods=["POST"])
+def send_email():
+    """メール送信機能"""
+    subject = request.form.get("subject", "No Subject")
+    body = request.form.get("body", "No Content")
+    recipient = "example@example.com"  # 修正する場合は適切な宛先に変更
+    sender = "your-email@gmail.com"
+    app_password = "your-app-password"
+
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+
+        msg = MIMEMultipart()
+        msg['From'] = sender
+        msg['To'] = recipient
+        msg['Subject'] = subject
+        msg.attach(MIMEText(body, 'plain'))
+
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465) as server:
+            server.login(sender, app_password)
+            server.sendmail(sender, recipient, msg.as_string())
+        flash("メールを送信しました", "success")
+    except Exception as e:
+        flash(f"メール送信中にエラーが発生しました: {e}", "error")
+
+    return redirect(url_for("calendar"))
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
