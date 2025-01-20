@@ -61,7 +61,7 @@ def load_work_status():
         work_status = {"休み": [], "遅刻": {}, "早退": {}}
         for row in cur.fetchall():
             if row['status_type'] == "休み":
-                work_status["休み"].append(row['holiday_date'])
+                work_status["休み"].append(row['status_date'])
             elif row['status_type'] == "遅刻":
                 work_status["遅刻"][str(row['status_date'])] = row['time']
             elif row['status_type'] == "早退":
@@ -70,6 +70,42 @@ def load_work_status():
 
 holidays = load_holidays()
 work_status = load_work_status()
+
+def get_status(date):
+    """指定された日付のステータスを取得"""
+    now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
+
+    if date > now.date():
+        status = []
+        if date in holidays:
+            status.append("休み")
+        if str(date) in work_status["遅刻"]:
+            status.append(f"{work_status['遅刻'][str(date)]} 出勤予定")
+        if str(date) in work_status["早退"]:
+            status.append(f"{work_status['早退'][str(date)]} 早退予定")
+        return " / ".join(status) if status else ""
+    elif date < now.date():
+        if date in holidays:
+            return "休み"
+        if str(date) in work_status["早退"]:
+            return f"{work_status['早退'][str(date)]} 早退済み"
+        return ""
+    else:
+        if date in holidays:
+            return "休み"
+        if str(date) in work_status["遅刻"]:
+            late_time = datetime.datetime.strptime(work_status["遅刻"][str(date)], "%H:%M").time()
+            if now.time() < late_time:
+                return f"遅刻中 {late_time.strftime('%H:%M')} 出勤予定"
+        if str(date) in work_status["早退"]:
+            early_time = datetime.datetime.strptime(work_status["早退"][str(date)], "%H:%M").time()
+            if now.time() < early_time:
+                return f"{early_time.strftime('%H:%M')} 早退予定"
+            else:
+                return "早退済み"
+        if date.weekday() < 5 and datetime.time(9, 30) <= now.time() <= datetime.time(17, 30):
+            return "勤務中"
+        return "勤務外"
 
 @app.route("/")
 def calendar():
@@ -89,7 +125,7 @@ def calendar():
     current_date = first_day
     while current_date <= last_day:
         is_holiday = current_date.weekday() >= 5 or current_date in holidays
-        week.append((current_date.day, "", is_holiday))
+        week.append((current_date.day, get_status(current_date), is_holiday))
         if len(week) == 7:
             month_days.append(week)
             week = []
@@ -100,12 +136,15 @@ def calendar():
     if week:
         month_days.append(week)
 
-    return render_template("calendar.html", year=year, month=month, month_days=month_days)
+    today_status = get_status(today)
+
+    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
 
 @app.route("/popup")
 def popup():
     day = request.args.get("day", "不明な日付")
-    return render_template("popup.html", day=day)
+    status = request.args.get("status", "特になし")
+    return render_template("popup.html", day=day, status=status)
 
 @app.route("/send_email", methods=["POST"])
 def send_email():
@@ -128,9 +167,9 @@ def send_email():
             server.login(SMTP_EMAIL, SMTP_PASSWORD)
             server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
         
-        return jsonify({"success": True, "message": "送信が完了しました"})
+        return render_template("popup.html", message="送信が完了しました", day=None, status=None)
     except Exception as e:
-        return jsonify({"success": False, "message": f"メール送信中にエラーが発生しました: {e}"})
+        return render_template("popup.html", message=f"メール送信中にエラーが発生しました: {e}", day=None, status=None)
 
 # 管理画面
 @app.route("/manage", methods=["GET", "POST"])
