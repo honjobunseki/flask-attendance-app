@@ -14,15 +14,14 @@ app.secret_key = "your_secret_key"
 # SMTP 設定
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
-SMTP_EMAIL = os.environ.get("SMTP_EMAIL")  # 環境変数から取得
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")  # 環境変数から取得
+SMTP_EMAIL = os.environ.get("SMTP_EMAIL")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
 
 # データベース接続設定
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
     raise Exception("DATABASE_URL is not set. Please configure it in your Render environment.")
 
-# データベース接続
 conn = psycopg2.connect(DATABASE_URL, sslmode="require")
 
 
@@ -58,7 +57,7 @@ def load_holidays():
             cur.execute("SELECT holiday_date FROM holidays;")
             return [row['holiday_date'] for row in cur.fetchall()]
     except psycopg2.Error as e:
-        conn.rollback()  # トランザクションをリセット
+        conn.rollback()
         print(f"Error loading holidays: {e}")
         return []
 
@@ -78,7 +77,7 @@ def load_work_status():
                     work_status["早退"][str(row['status_date'])] = row['time']
             return work_status
     except psycopg2.Error as e:
-        conn.rollback()  # トランザクションをリセット
+        conn.rollback()
         print(f"Error loading work status: {e}")
         return {"休み": [], "遅刻": {}, "早退": {}}
 
@@ -163,28 +162,35 @@ def manage():
     """管理画面で休日や勤務状態を編集する"""
     if request.method == "POST":
         action = request.form.get("action")
+        date = request.form.get("date")
+        time = request.form.get("time")
         if action == "add_holiday":
-            holiday_date = request.form.get("holiday_date")
             try:
                 with conn.cursor() as cur:
-                    cur.execute("INSERT INTO holidays (holiday_date) VALUES (%s) ON CONFLICT DO NOTHING;", (holiday_date,))
+                    cur.execute("INSERT INTO holidays (holiday_date) VALUES (%s) ON CONFLICT DO NOTHING;", (date,))
                     conn.commit()
                 flash("休日を追加しました。")
             except psycopg2.Error as e:
                 conn.rollback()
                 flash(f"エラー: {e}")
-        elif action == "remove_holiday":
-            holiday_date = request.form.get("holiday_date")
+        elif action in ["add_late", "add_early"]:
+            status_type = "遅刻" if action == "add_late" else "早退"
             try:
                 with conn.cursor() as cur:
-                    cur.execute("DELETE FROM holidays WHERE holiday_date = %s;", (holiday_date,))
+                    cur.execute("""
+                    INSERT INTO work_status (status_date, status_type, time)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (status_date, status_type) DO UPDATE
+                    SET time = EXCLUDED.time;
+                    """, (date, status_type, time))
                     conn.commit()
-                flash("休日を削除しました。")
+                flash(f"{status_type}を追加しました。")
             except psycopg2.Error as e:
                 conn.rollback()
                 flash(f"エラー: {e}")
     holidays = load_holidays()
-    return render_template("manage.html", holidays=holidays)
+    work_status = load_work_status()
+    return render_template("manage.html", holidays=holidays, work_status=work_status)
 
 
 if __name__ == "__main__":
