@@ -31,6 +31,7 @@ def create_tables():
             status_date DATE NOT NULL,
             status_type VARCHAR(20) NOT NULL,
             time VARCHAR(10),
+            extra_info VARCHAR(50),
             UNIQUE (status_date, status_type)
         );
         """)
@@ -48,15 +49,22 @@ def load_holidays():
 def load_work_status():
     """勤務状態データをロード"""
     with conn.cursor(cursor_factory=DictCursor) as cur:
-        cur.execute("SELECT status_date, status_type, time FROM work_status;")
-        work_status = {"休み": [], "遅刻": {}, "早退": {}}
+        cur.execute("SELECT status_date, status_type, time, extra_info FROM work_status;")
+        work_status = {
+            "休み": [],
+            "遅刻": {},
+            "早退": {},
+            "外出中": {},
+            "休憩中": {}
+        }
         for row in cur.fetchall():
             if row['status_type'] == "休み":
                 work_status["休み"].append(row['status_date'])
-            elif row['status_type'] == "遅刻":
-                work_status["遅刻"][str(row['status_date'])] = row['time']
-            elif row['status_type'] == "早退":
-                work_status["早退"][str(row['status_date'])] = row['time']
+            elif row['status_type'] in ["遅刻", "早退", "外出中", "休憩中"]:
+                work_status[row['status_type']][str(row['status_date'])] = {
+                    "time": row['time'],
+                    "extra_info": row['extra_info']
+                }
         return work_status
 
 @app.route("/")
@@ -97,13 +105,20 @@ def calendar():
 
 def get_status(date, holidays, work_status):
     """日付のステータスを取得"""
+    status_parts = []
     if date in holidays:
-        return "休み"
-    if str(date) in work_status["遅刻"]:
-        return f"{work_status['遅刻'][str(date)]} 遅刻予定"
-    if str(date) in work_status["早退"]:
-        return f"{work_status['早退'][str(date)]} 早退予定"
-    return ""
+        status_parts.append("休み")
+    for status_type in ["遅刻", "早退", "外出中", "休憩中"]:
+        if str(date) in work_status[status_type]:
+            time_info = work_status[status_type][str(date)]["time"]
+            extra_info = work_status[status_type][str(date)]["extra_info"]
+            status = status_type
+            if time_info:
+                status += f" {time_info}"
+            if extra_info:
+                status += f" ({extra_info})"
+            status_parts.append(status)
+    return " / ".join(status_parts)
 
 @app.route("/manage", methods=["GET", "POST"])
 def manage():
@@ -112,30 +127,29 @@ def manage():
         date = request.form.get("date")
         status_type = request.form.get("status_type")
         time = request.form.get("time", None)
+        extra_info = None
+        if status_type == "外出中" and request.form.get("direct_return") == "on":
+            extra_info = "直帰予定"
 
-        if status_type == "休み":
-            try:
+        try:
+            if status_type == "休み":
                 with conn.cursor() as cur:
                     cur.execute("INSERT INTO holidays (holiday_date) VALUES (%s) ON CONFLICT DO NOTHING;", (date,))
                     conn.commit()
                 flash("休日を追加しました", "success")
-            except Exception as e:
-                conn.rollback()
-                flash(f"エラー: {e}", "danger")
-        else:
-            try:
+            else:
                 with conn.cursor() as cur:
                     cur.execute("""
-                        INSERT INTO work_status (status_date, status_type, time)
-                        VALUES (%s, %s, %s)
+                        INSERT INTO work_status (status_date, status_type, time, extra_info)
+                        VALUES (%s, %s, %s, %s)
                         ON CONFLICT (status_date, status_type)
-                        DO UPDATE SET time = EXCLUDED.time;
-                    """, (date, status_type, time))
+                        DO UPDATE SET time = EXCLUDED.time, extra_info = EXCLUDED.extra_info;
+                    """, (date, status_type, time, extra_info))
                     conn.commit()
                 flash(f"{status_type}を追加しました", "success")
-            except Exception as e:
-                conn.rollback()
-                flash(f"エラー: {e}", "danger")
+        except Exception as e:
+            conn.rollback()
+            flash(f"エラー: {e}", "danger")
 
     holidays = load_holidays()
     work_status = load_work_status()
