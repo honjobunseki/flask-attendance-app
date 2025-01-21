@@ -172,7 +172,12 @@ def send_email():
     except Exception as e:
         return render_template("sent.html", message=f"メール送信中にエラーが発生しました: {e}")
 
+@app.route("/health")
+def health_check():
+    """ヘルスチェック用エンドポイント"""
+    return "OK", 200
+
 if __name__ == "__main__":
-    # デプロイ環境でポートを適切にバインド
-    port = int(os.environ.get("PORT", 5000))
+    # デプロイ環境に応じたポート設定
+    port = int(os.environ.get("PORT", 5000))  # Render環境のPORTを取得
     app.run(host="0.0.0.0", port=port, debug=False)
