@@ -140,37 +140,31 @@ def calendar():
 
     return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
 
-@app.route("/popup")
-def popup():
-    day = request.args.get("day", "不明な日付")
-    status = request.args.get("status", "特になし")
-    return render_template("popup.html", day=day, status=status)
-
-@app.route("/send_email", methods=["POST"])
-def send_email():
-    """メールを送信する"""
-    subject = request.form.get("subject", "No Subject")
-    body = request.form.get("body", "No Content")
-    recipient = "masato_o@mac.com"
-
+@app.route("/add_holiday", methods=["POST"])
+def add_holiday():
+    date = request.form.get("date")
     try:
-        # メールを作成
-        msg = MIMEMultipart()
-        msg["From"] = SMTP_EMAIL
-        msg["To"] = recipient
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body, "plain"))
-
-        # SMTP サーバーを使用して送信
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_EMAIL, SMTP_PASSWORD)
-            server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
-        
-        # 送信完了後に sent.html を表示
-        return render_template("sent.html", message="メール送信が完了しました")
+        with conn.cursor() as cur:
+            cur.execute("INSERT INTO holidays (holiday_date) VALUES (%s) ON CONFLICT DO NOTHING;", (date,))
+            conn.commit()
+        flash("休日を追加しました", "success")
     except Exception as e:
-        return render_template("sent.html", message=f"メール送信中にエラーが発生しました: {e}")
+        conn.rollback()
+        flash(f"エラー: {e}", "danger")
+    return redirect(url_for("calendar"))
+
+@app.route("/delete_holiday", methods=["POST"])
+def delete_holiday():
+    date = request.form.get("date")
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM holidays WHERE holiday_date = %s;", (date,))
+            conn.commit()
+        flash("休日を削除しました", "success")
+    except Exception as e:
+        conn.rollback()
+        flash(f"エラー: {e}", "danger")
+    return redirect(url_for("calendar"))
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
