@@ -1,30 +1,136 @@
-<!-- 削除用フォーム -->
-<form method="post">
-    <input type="hidden" name="action" value="delete_holiday">
-    <input type="date" name="date" required>
-    <button type="submit">休日を削除</button>
-</form>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理画面</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        form input, form button, form label {
+            margin-right: 10px;
+        }
+        .table-container {
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            text-align: left;
+            padding: 8px;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+    </style>
+</head>
+<body>
+    <h1>管理画面</h1>
 
-<form method="post">
-    <input type="hidden" name="action" value="delete_late">
-    <input type="date" name="date" required>
-    <button type="submit">遅刻予定を削除</button>
-</form>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            <ul>
+                {% for message in messages %}
+                    <li>{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
 
-<form method="post">
-    <input type="hidden" name="action" value="delete_early">
-    <input type="date" name="date" required>
-    <button type="submit">早退予定を削除</button>
-</form>
+    <h2>ステータスの追加</h2>
 
-<form method="post">
-    <input type="hidden" name="action" value="delete_outside">
-    <input type="date" name="date" required>
-    <button type="submit">外出中を削除</button>
-</form>
+    <!-- 休日の追加フォーム -->
+    <form method="POST">
+        <input type="date" name="date" required>
+        <button type="submit" name="action" value="add_holiday">休日を追加</button>
+    </form>
 
-<form method="post">
-    <input type="hidden" name="action" value="delete_break">
-    <input type="date" name="date" required>
-    <button type="submit">休憩中を削除</button>
-</form>
+    <!-- 遅刻の追加フォーム -->
+    <form method="POST">
+        <input type="date" name="date" required>
+        <input type="time" name="time" required>
+        <button type="submit" name="action" value="add_late">遅刻を追加</button>
+    </form>
+
+    <!-- 早退の追加フォーム -->
+    <form method="POST">
+        <input type="date" name="date" required>
+        <input type="time" name="time" required>
+        <button type="submit" name="action" value="add_early">早退を追加</button>
+    </form>
+
+    <!-- 外出中の追加フォーム -->
+    <form method="POST">
+        <input type="date" name="date" required>
+        <label>
+            <input type="checkbox" name="go_home">
+            直帰予定
+        </label>
+        <button type="submit" name="action" value="add_outside">外出中を追加</button>
+    </form>
+
+    <!-- 休憩中の追加フォーム -->
+    <form method="POST">
+        <input type="date" name="date" required>
+        <button type="submit" name="action" value="add_break">休憩中を追加</button>
+    </form>
+
+    <h2>現在の設定状況</h2>
+
+    <!-- 休日のリスト -->
+    <div class="table-container">
+        <h3>休日</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>日付</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for holiday in holidays %}
+                    <tr>
+                        <td>{{ holiday }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 勤務状態のリスト -->
+    <div class="table-container">
+        <h3>勤務状態</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>日付</th>
+                    <th>ステータス</th>
+                    <th>時間</th>
+                    <th>追加情報</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for status in work_status %}
+                    <tr>
+                        <td>{{ status.status_date }}</td>
+                        <td>{{ status.status_type }}</td>
+                        <td>{{ status.time or "なし" }}</td>
+                        <td>{{ status.additional_info or "なし" }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
