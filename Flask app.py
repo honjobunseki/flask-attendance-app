@@ -18,14 +18,17 @@ conn = psycopg2.connect(DATABASE_URL, sslmode="require")
 
 
 def create_tables():
-    """必要なテーブルを作成"""
+    """必要なテーブルを作成または更新"""
     with conn.cursor() as cur:
+        # holidays テーブルの作成
         cur.execute("""
         CREATE TABLE IF NOT EXISTS holidays (
             id SERIAL PRIMARY KEY,
             holiday_date DATE NOT NULL UNIQUE
         );
         """)
+
+        # work_status テーブルの作成または更新
         cur.execute("""
         CREATE TABLE IF NOT EXISTS work_status (
             id SERIAL PRIMARY KEY,
@@ -36,6 +39,19 @@ def create_tables():
             UNIQUE (status_date, status_type)
         );
         """)
+
+        # 追加のカラムが存在しない場合に追加
+        cur.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                           WHERE table_name='work_status' AND column_name='additional_info') THEN
+                ALTER TABLE work_status ADD COLUMN additional_info VARCHAR(50);
+            END IF;
+        END
+        $$;
+        """)
+
         conn.commit()
 
 
@@ -70,24 +86,6 @@ def load_work_status():
 
 holidays = load_holidays()
 work_status = load_work_status()
-
-
-def get_status(date):
-    """日付のステータスを取得"""
-    now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
-    if date in holidays:
-        return "休み"
-    if str(date) in work_status["遅刻"]:
-        return f"遅刻予定: {work_status['遅刻'][str(date)]}"
-    if str(date) in work_status["早退"]:
-        return f"早退予定: {work_status['早退'][str(date)]}"
-    if str(date) in work_status["外出中"]:
-        return f"外出中 ({work_status['外出中'][str(date)]})"
-    if date in work_status["休憩中"]:
-        return "休憩中"
-    if date == now.date():
-        return "勤務中"
-    return ""
 
 
 @app.route("/")
