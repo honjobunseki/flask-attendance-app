@@ -96,12 +96,19 @@
             <thead>
                 <tr>
                     <th>日付</th>
+                    <th>操作</th>
                 </tr>
             </thead>
             <tbody>
                 {% for holiday in holidays %}
                     <tr>
                         <td>{{ holiday }}</td>
+                        <td>
+                            <form method="POST" style="display:inline;">
+                                <input type="hidden" name="date" value="{{ holiday }}">
+                                <button type="submit" name="action" value="delete_holiday">削除</button>
+                            </form>
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
@@ -118,6 +125,7 @@
                     <th>ステータス</th>
                     <th>時間</th>
                     <th>追加情報</th>
+                    <th>操作</th>
                 </tr>
             </thead>
             <tbody>
@@ -127,6 +135,13 @@
                         <td>{{ status.status_type }}</td>
                         <td>{{ status.time or "なし" }}</td>
                         <td>{{ status.additional_info or "なし" }}</td>
+                        <td>
+                            <form method="POST" style="display:inline;">
+                                <input type="hidden" name="date" value="{{ status.status_date }}">
+                                <input type="hidden" name="status_type" value="{{ status.status_type }}">
+                                <button type="submit" name="action" value="delete_status">削除</button>
+                            </form>
+                        </td>
                     </tr>
                 {% endfor %}
             </tbody>
