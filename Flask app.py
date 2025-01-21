@@ -31,6 +31,7 @@ def create_tables():
             status_date DATE NOT NULL,
             status_type VARCHAR(20) NOT NULL,
             time VARCHAR(10),
+            additional_info VARCHAR(50),
             UNIQUE (status_date, status_type)
         );
         """)
@@ -51,7 +52,7 @@ def load_holidays():
 def load_work_status():
     """勤務状態データをロード"""
     with conn.cursor(cursor_factory=DictCursor) as cur:
-        cur.execute("SELECT status_date, status_type, time FROM work_status ORDER BY status_date;")
+        cur.execute("SELECT status_date, status_type, time, additional_info FROM work_status ORDER BY status_date;")
         return cur.fetchall()
 
 
@@ -67,6 +68,11 @@ def get_status(date, holidays, work_status):
                 return f"遅刻 ({status['time']})"
             elif status["status_type"] == "早退":
                 return f"早退 ({status['time']})"
+            elif status["status_type"] == "外出中":
+                additional = f"（{status['additional_info']}）" if status["additional_info"] else ""
+                return f"外出中{additional}"
+            elif status["status_type"] == "休憩中":
+                return "休憩中"
     if date == now.date():
         return "勤務中"
     return ""
@@ -117,6 +123,7 @@ def manage():
         action = request.form.get("action")
         date = request.form.get("date")
         time = request.form.get("time")
+        additional_info = None
 
         if action == "add_holiday" and date:
             try:
@@ -137,6 +144,22 @@ def manage():
                     """, (date, status_type, time))
                     conn.commit()
                 flash(f"{date} の {status_type} を {time} に設定しました。")
+            except Exception as e:
+                flash(f"エラー: {e}")
+
+        elif action in ["add_outside", "add_break"] and date:
+            status_type = "外出中" if action == "add_outside" else "休憩中"
+            if action == "add_outside":
+                additional_info = "直帰予定" if request.form.get("go_home") == "on" else None
+            try:
+                with conn.cursor() as cur:
+                    cur.execute("""
+                        INSERT INTO work_status (status_date, status_type, time, additional_info) 
+                        VALUES (%s, %s, NULL, %s) 
+                        ON CONFLICT (status_date, status_type) DO UPDATE SET additional_info = EXCLUDED.additional_info;
+                    """, (date, status_type, additional_info))
+                    conn.commit()
+                flash(f"{date} の {status_type} を設定しました。")
             except Exception as e:
                 flash(f"エラー: {e}")
 
