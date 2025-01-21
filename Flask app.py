@@ -71,47 +71,12 @@ def load_work_status():
 holidays = load_holidays()
 work_status = load_work_status()
 
-def get_status(date):
-    """指定された日付のステータスを取得"""
-    now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
-
-    if date > now.date():
-        status = []
-        if date in holidays:
-            status.append("休み")
-        if str(date) in work_status["遅刻"]:
-            status.append(f"{work_status['遅刻'][str(date)]} 出勤予定")
-        if str(date) in work_status["早退"]:
-            status.append(f"{work_status['早退'][str(date)]} 早退予定")
-        return " / ".join(status) if status else ""
-    elif date < now.date():
-        if date in holidays:
-            return "休み"
-        if str(date) in work_status["早退"]:
-            return f"{work_status['早退'][str(date)]} 早退済み"
-        return ""
-    else:
-        if date in holidays:
-            return "休み"
-        if str(date) in work_status["遅刻"]:
-            late_time = datetime.datetime.strptime(work_status["遅刻"][str(date)], "%H:%M").time()
-            if now.time() < late_time:
-                return f"遅刻中 {late_time.strftime('%H:%M')} 出勤予定"
-        if str(date) in work_status["早退"]:
-            early_time = datetime.datetime.strptime(work_status["早退"][str(date)], "%H:%M").time()
-            if now.time() < early_time:
-                return f"{early_time.strftime('%H:%M')} 早退予定"
-            else:
-                return "早退済み"
-        if date.weekday() < 5 and datetime.time(9, 30) <= now.time() <= datetime.time(17, 30):
-            return "勤務中"
-        return "勤務外"
-
 @app.route("/")
 def calendar():
     today = datetime.date.today()
     year, month = today.year, today.month
 
+    # カレンダー情報を生成
     first_day = datetime.date(year, month, 1)
     last_day = (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)) if month < 12 else datetime.date(year, 12, 31)
     month_days = []
@@ -125,7 +90,7 @@ def calendar():
     current_date = first_day
     while current_date <= last_day:
         is_holiday = current_date.weekday() >= 5 or current_date in holidays
-        week.append((current_date.day, get_status(current_date), is_holiday))
+        week.append((current_date.day, "", is_holiday))
         if len(week) == 7:
             month_days.append(week)
             week = []
@@ -136,41 +101,7 @@ def calendar():
     if week:
         month_days.append(week)
 
-    today_status = get_status(today)
-
-    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
-
-@app.route("/popup")
-def popup():
-    day = request.args.get("day", "不明な日付")
-    status = request.args.get("status", "特になし")
-    return render_template("popup.html", day=day, status=status)
-
-@app.route("/send_email", methods=["POST"])
-def send_email():
-    """メールを送信する"""
-    subject = request.form.get("subject", "No Subject")
-    body = request.form.get("body", "No Content")
-    recipient = "masato_o@mac.com"
-
-    try:
-        # メールを作成
-        msg = MIMEMultipart()
-        msg["From"] = SMTP_EMAIL
-        msg["To"] = recipient
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body, "plain"))
-
-        # SMTP サーバーを使用して送信
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_EMAIL, SMTP_PASSWORD)
-            server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
-        
-        # 送信完了後に sent.html を表示
-        return render_template("sent.html", message="メール送信が完了しました")
-    except Exception as e:
-        return render_template("sent.html", message=f"メール送信中にエラーが発生しました: {e}")
+    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days)
 
 @app.route("/health")
 def health_check():
@@ -178,6 +109,6 @@ def health_check():
     return "OK", 200
 
 if __name__ == "__main__":
-    # デプロイ環境に応じたポート設定
-    port = int(os.environ.get("PORT", 5000))  # Render環境のPORTを取得
-    app.run(host="0.0.0.0", port=port, debug=False)
+    # Render 環境でのポート設定
+    port = int(os.environ.get("PORT", 5000))  # Render プラットフォームで環境変数 PORT を取得
+    app.run(host="0.0.0.0", port=port)
