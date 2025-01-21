@@ -40,7 +40,7 @@ def create_tables():
         );
         """)
 
-        # 追加のカラムが存在しない場合に追加
+        # カラムの存在確認と追加
         cur.execute("""
         DO $$
         BEGIN
@@ -86,6 +86,23 @@ def load_work_status():
 
 holidays = load_holidays()
 work_status = load_work_status()
+
+
+def get_status(date):
+    """指定された日付のステータスを取得"""
+    status = []
+    if date in holidays:
+        status.append("休み")
+    if str(date) in work_status["遅刻"]:
+        status.append(f"遅刻: {work_status['遅刻'][str(date)]}")
+    if str(date) in work_status["早退"]:
+        status.append(f"早退: {work_status['早退'][str(date)]}")
+    if str(date) in work_status["外出中"]:
+        additional = work_status["外出中"][str(date)]
+        status.append(f"外出中 {additional or ''}")
+    if date in work_status["休憩中"]:
+        status.append("休憩中")
+    return " / ".join(status) if status else ""
 
 
 @app.route("/")
