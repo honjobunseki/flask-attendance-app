@@ -1,69 +1,35 @@
-<!DOCTYPE html>
-<html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>管理ページ</title>
-</head>
-<body>
-    <h1>管理ページ</h1>
+<form method="POST">
+    <label for="date">日付:</label>
+    <input type="date" id="date" name="date" required>
 
-    <h2>休みを管理</h2>
-    <form method="POST">
-        <label for="date">日付:</label>
-        <input type="date" name="date" required>
-        <button type="submit" name="action" value="add_holiday">休みを追加</button>
-    </form>
-    <ul>
-        {% for holiday in holidays %}
-        <li>
-            {{ holiday }}
-            <form method="POST" style="display:inline;">
-                <input type="hidden" name="date" value="{{ holiday }}">
-                <button type="submit" name="action" value="remove_holiday">削除</button>
-            </form>
-        </li>
-        {% endfor %}
-    </ul>
+    <label for="status_type">ステータス:</label>
+    <select id="status_type" name="status_type" required>
+        <option value="休み">休み</option>
+        <option value="遅刻">遅刻</option>
+        <option value="早退">早退</option>
+        <option value="外出中">外出中</option>
+        <option value="休憩中">休憩中</option>
+    </select>
 
-    <h2>遅刻を管理</h2>
-    <form method="POST">
-        <label for="date">日付:</label>
-        <input type="date" name="date" required>
-        <label for="time">遅刻時間:</label>
-        <input type="time" name="time" required>
-        <button type="submit" name="action" value="add_late">遅刻を追加</button>
-    </form>
-    <ul>
-        {% for date, time in work_status["遅刻"].items() %}
-        <li>
-            {{ date }}: {{ time }}
-            <form method="POST" style="display:inline;">
-                <input type="hidden" name="date" value="{{ date }}">
-                <button type="submit" name="action" value="remove_late">削除</button>
-            </form>
-        </li>
-        {% endfor %}
-    </ul>
+    <label for="time">時間 (遅刻/早退のみ):</label>
+    <input type="time" id="time" name="time">
 
-    <h2>早退を管理</h2>
-    <form method="POST">
-        <label for="date">日付:</label>
-        <input type="date" name="date" required>
-        <label for="time">早退時間:</label>
-        <input type="time" name="time" required>
-        <button type="submit" name="action" value="add_early">早退を追加</button>
-    </form>
-    <ul>
-        {% for date, time in work_status["早退"].items() %}
-        <li>
-            {{ date }}: {{ time }}
-            <form method="POST" style="display:inline;">
-                <input type="hidden" name="date" value="{{ date }}">
-                <button type="submit" name="action" value="remove_early">削除</button>
-            </form>
-        </li>
-        {% endfor %}
-    </ul>
-</body>
-</html>
+    <div id="extra_options" style="display:none;">
+        <input type="checkbox" id="direct_return" name="direct_return">
+        <label for="direct_return">直帰予定</label>
+    </div>
+
+    <button type="submit">追加</button>
+</form>
+
+<script>
+    // ステータスが「外出中」の場合のみ「直帰予定」のオプションを表示
+    document.getElementById("status_type").addEventListener("change", function() {
+        const extraOptions = document.getElementById("extra_options");
+        if (this.value === "外出中") {
+            extraOptions.style.display = "block";
+        } else {
+            extraOptions.style.display = "none";
+        }
+    });
+</script>
