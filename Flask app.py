@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, flash
 import datetime
 import pytz
 import os
@@ -19,12 +19,14 @@ conn = psycopg2.connect(DATABASE_URL, sslmode="require")
 def create_tables():
     """必要なテーブルを作成する"""
     with conn.cursor() as cur:
+        # 休日テーブル
         cur.execute("""
         CREATE TABLE IF NOT EXISTS holidays (
             id SERIAL PRIMARY KEY,
             holiday_date DATE NOT NULL UNIQUE
         );
         """)
+        # 勤務ステータステーブル
         cur.execute("""
         CREATE TABLE IF NOT EXISTS work_status (
             id SERIAL PRIMARY KEY,
