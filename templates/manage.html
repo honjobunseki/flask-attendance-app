@@ -1,35 +1,79 @@
-<form method="POST">
-    <label for="date">日付:</label>
-    <input type="date" id="date" name="date" required>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理画面</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <h1>管理画面</h1>
 
-    <label for="status_type">ステータス:</label>
-    <select id="status_type" name="status_type" required>
-        <option value="休み">休み</option>
-        <option value="遅刻">遅刻</option>
-        <option value="早退">早退</option>
-        <option value="外出中">外出中</option>
-        <option value="休憩中">休憩中</option>
-    </select>
+    <!-- フラッシュメッセージ表示 -->
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+        <ul>
+            {% for message in messages %}
+                <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+    {% endwith %}
 
-    <label for="time">時間 (遅刻/早退のみ):</label>
-    <input type="time" id="time" name="time">
+    <h2>休日の管理</h2>
+    <form method="POST" action="/manage">
+        <label for="holiday-date">休日の日付を入力してください:</label>
+        <input type="date" id="holiday-date" name="date" required>
+        <input type="hidden" name="action" value="add_holiday">
+        <button type="submit">休日を追加</button>
+    </form>
 
-    <div id="extra_options" style="display:none;">
-        <input type="checkbox" id="direct_return" name="direct_return">
-        <label for="direct_return">直帰予定</label>
-    </div>
+    <h2>勤務状態の管理</h2>
+    <form method="POST" action="/manage">
+        <label for="work-date">日付:</label>
+        <input type="date" id="work-date" name="date" required>
 
-    <button type="submit">追加</button>
-</form>
+        <label for="status-type">ステータス:</label>
+        <select id="status-type" name="action" required>
+            <option value="add_late">遅刻</option>
+            <option value="add_early">早退</option>
+        </select>
 
-<script>
-    // ステータスが「外出中」の場合のみ「直帰予定」のオプションを表示
-    document.getElementById("status_type").addEventListener("change", function() {
-        const extraOptions = document.getElementById("extra_options");
-        if (this.value === "外出中") {
-            extraOptions.style.display = "block";
-        } else {
-            extraOptions.style.display = "none";
-        }
-    });
-</script>
+        <label for="time">時間 (例: 09:30):</label>
+        <input type="time" id="time" name="time" required>
+
+        <button type="submit">追加</button>
+    </form>
+
+    <h2>登録済みデータ</h2>
+
+    <h3>休日</h3>
+    <ul>
+        {% for holiday in holidays %}
+            <li>{{ holiday }}</li>
+        {% endfor %}
+    </ul>
+
+    <h3>勤務状態</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>日付</th>
+                <th>ステータス</th>
+                <th>時間</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for date, status_type, time in work_status %}
+            <tr>
+                <td>{{ date }}</td>
+                <td>{{ status_type }}</td>
+                <td>{{ time if time else "N/A" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="/">カレンダーに戻る</a>
+</body>
+</html>
