@@ -4,18 +4,9 @@ import pytz
 import os
 import psycopg2
 from psycopg2.extras import DictCursor
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 
 app = Flask(__name__)
 app.secret_key = "your_secret_key"
-
-# SMTP 設定
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-SMTP_EMAIL = os.environ.get("SMTP_EMAIL")
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
 
 # データベース接続設定
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -52,41 +43,65 @@ create_tables()
 
 def load_holidays():
     """休日データをロード"""
-    try:
-        with conn.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("SELECT holiday_date FROM holidays;")
-            return [row['holiday_date'] for row in cur.fetchall()]
-    except psycopg2.Error as e:
-        conn.rollback()
-        print(f"Error loading holidays: {e}")
-        return []
+    with conn.cursor(cursor_factory=DictCursor) as cur:
+        cur.execute("SELECT holiday_date FROM holidays ORDER BY holiday_date;")
+        return [row['holiday_date'] for row in cur.fetchall()]
 
 
 def load_work_status():
     """勤務状態データをロード"""
-    try:
-        with conn.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("SELECT status_date, status_type, time FROM work_status;")
-            work_status = {"休み": [], "遅刻": {}, "早退": {}}
-            for row in cur.fetchall():
-                if row['status_type'] == "休み":
-                    work_status["休み"].append(row['status_date'])
-                elif row['status_type'] == "遅刻":
-                    work_status["遅刻"][str(row['status_date'])] = row['time']
-                elif row['status_type'] == "早退":
-                    work_status["早退"][str(row['status_date'])] = row['time']
-            return work_status
-    except psycopg2.Error as e:
-        conn.rollback()
-        print(f"Error loading work status: {e}")
-        return {"休み": [], "遅刻": {}, "早退": {}}
+    with conn.cursor(cursor_factory=DictCursor) as cur:
+        cur.execute("SELECT status_date, status_type, time FROM work_status ORDER BY status_date;")
+        work_status = {"休み": [], "遅刻": {}, "早退": {}}
+        for row in cur.fetchall():
+            if row['status_type'] == "休み":
+                work_status["休み"].append(row['status_date'])
+            elif row['status_type'] == "遅刻":
+                work_status["遅刻"][str(row['status_date'])] = row['time']
+            elif row['status_type'] == "早退":
+                work_status["早退"][str(row['status_date'])] = row['time']
+        return work_status
 
 
-holidays = load_holidays()
-work_status = load_work_status()
+@app.route("/")
+def calendar():
+    today = datetime.date.today()
+    year, month = today.year, today.month
+
+    first_day = datetime.date(year, month, 1)
+    last_day = (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)) if month < 12 else datetime.date(year, 12, 31)
+    month_days = []
+    week = []
+    current_date = first_day
+
+    holidays = load_holidays()
+    work_status = load_work_status()
+
+    while current_date.weekday() != 0:
+        week.append((0, "", False))
+        current_date -= datetime.timedelta(days=1)
+
+    current_date = first_day
+    while current_date <= last_day:
+        is_holiday = current_date.weekday() >= 5 or current_date in holidays
+        status = get_status(current_date, holidays, work_status)
+        week.append((current_date.day, status, is_holiday))
+        if len(week) == 7:
+            month_days.append(week)
+            week = []
+        current_date += datetime.timedelta(days=1)
+
+    while len(week) < 7:
+        week.append((0, "", False))
+    if week:
+        month_days.append(week)
+
+    today_status = get_status(today, holidays, work_status)
+
+    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
 
 
-def get_status(date):
+def get_status(date, holidays, work_status):
     """指定された日付のステータスを取得"""
     now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
 
@@ -123,40 +138,6 @@ def get_status(date):
         return "勤務外"
 
 
-@app.route("/")
-def calendar():
-    today = datetime.date.today()
-    year, month = today.year, today.month
-
-    first_day = datetime.date(year, month, 1)
-    last_day = (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)) if month < 12 else datetime.date(year, 12, 31)
-    month_days = []
-    week = []
-    current_date = first_day
-
-    while current_date.weekday() != 0:
-        week.append((0, "", False))
-        current_date -= datetime.timedelta(days=1)
-
-    current_date = first_day
-    while current_date <= last_day:
-        is_holiday = current_date.weekday() >= 5 or current_date in holidays
-        week.append((current_date.day, get_status(current_date), is_holiday))
-        if len(week) == 7:
-            month_days.append(week)
-            week = []
-        current_date += datetime.timedelta(days=1)
-
-    while len(week) < 7:
-        week.append((0, "", False))
-    if week:
-        month_days.append(week)
-
-    today_status = get_status(today)
-
-    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
-
-
 @app.route("/manage", methods=["GET", "POST"])
 def manage():
     """管理画面で休日や勤務状態を編集する"""
@@ -169,7 +150,7 @@ def manage():
                 with conn.cursor() as cur:
                     cur.execute("INSERT INTO holidays (holiday_date) VALUES (%s) ON CONFLICT DO NOTHING;", (date,))
                     conn.commit()
-                flash("休日を追加しました。")
+                flash(f"{date} を休日に追加しました。")
             except psycopg2.Error as e:
                 conn.rollback()
                 flash(f"エラー: {e}")
@@ -184,10 +165,11 @@ def manage():
                     SET time = EXCLUDED.time;
                     """, (date, status_type, time))
                     conn.commit()
-                flash(f"{status_type}を追加しました。")
+                flash(f"{date} に {status_type} を追加しました。")
             except psycopg2.Error as e:
                 conn.rollback()
                 flash(f"エラー: {e}")
+
     holidays = load_holidays()
     work_status = load_work_status()
     return render_template("manage.html", holidays=holidays, work_status=work_status)
