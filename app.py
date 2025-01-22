@@ -281,6 +281,7 @@ def manage():
         go_home = request.form.get("go_home")
         # additional_info = request.form.get("additional_info", "")  # フォームに追加情報がない場合はコメントアウト
 
+        db = None  # 初期化
         try:
             db = get_db()
             with db.cursor() as cur:
