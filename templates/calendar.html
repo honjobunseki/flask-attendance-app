@@ -1,22 +1,116 @@
-from flask import Flask, render_template
-from datetime import datetime, timedelta
-import calendar
-
-app = Flask(__name__)
-
-# カレンダーページ
-@app.route("/")
-def calendar_page():
-    # 今日の日付を取得
-    today = datetime.now()
-    year, month = today.year, today.month
-
-    # カレンダー生成
-    cal = calendar.Calendar(firstweekday=6)
-    month_days = cal.itermonthdays2(year, month)  # 日付と曜日のタプル
-
-    # データをテンプレートに渡す
-    return render_template("calendar.html", today=today, year=year, month=month, month_days=month_days)
-
-if __name__ == "__main__":
-    app.run(debug=True)
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カレンダー</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            text-align: center;
+            padding: 8px;
+            height: 100px; /* 行の高さを固定 */
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .holiday {
+            background-color: red;
+            color: white;
+        }
+        .today {
+            background-color: white;
+            font-weight: bold;
+        }
+        .empty {
+            background-color: #eaeaea; /* グレーに塗りつぶし */
+        }
+        .status {
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #555;
+        }
+        .contact-btn {
+            margin-top: 5px;
+            display: inline-block;
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .contact-btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+    <script>
+        function openPopup(day, status) {
+            const popupWidth = 500;
+            const popupHeight = 400;
+            const left = (window.innerWidth - popupWidth) / 2;
+            const top = (window.innerHeight - popupHeight) / 2;
+            const url = `/popup?day=${encodeURIComponent(day)}&status=${encodeURIComponent(status)}`;
+            window.open(url, "_blank", `width=${popupWidth},height=${popupHeight},left=${left},top=${top}`);
+        }
+    </script>
+</head>
+<body>
+    <h1>{{ year }}年{{ month }}月のカレンダー</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>月</th>
+                <th>火</th>
+                <th>水</th>
+                <th>木</th>
+                <th>金</th>
+                <th>土</th>
+                <th>日</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for week in month_days %}
+                <tr>
+                    {% for day, status, is_holiday in week %}
+                        {% if day == 0 %}
+                            <td class="empty"></td> <!-- 空白セルをグレーで表示 -->
+                        {% elif day == today %}
+                            <td class="today">
+                                <div>{{ day }}</div>
+                                {% if status %}
+                                    <div class="status">{{ status }}</div>
+                                {% endif %}
+                                <!-- 本日だけ「連絡する」ボタンを表示 -->
+                                <button 
+                                    class="contact-btn" 
+                                    onclick="openPopup('{{ year }}年{{ month }}月{{ day }}日', '{{ status }}')">
+                                    連絡する
+                                </button>
+                            </td>
+                        {% elif is_holiday %}
+                            <td class="holiday">
+                                <div>{{ day }}</div>
+                                {% if status %}
+                                    <div class="status">{{ status }}</div>
+                                {% endif %}
+                            </td>
+                        {% else %}
+                            <td>
+                                <div>{{ day }}</div>
+                                {% if status %}
+                                    <div class="status">{{ status }}</div>
+                                {% endif %}
+                            </td>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

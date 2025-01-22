@@ -2,70 +2,90 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理ページ</title>
+    <style>
+        /* 既存のスタイル */
+        .container {
+            width: 80%;
+            margin: auto;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        /* ボタンスタイル */
+        .btn {
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 2px;
+        }
+        .btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
 </head>
 <body>
-    <h1>休業日と勤務時間設定</h1>
+    <div class="container">
+        <h1>管理ページ</h1>
+        <table>
+            <thead>
+                <tr>
+                    <th>ユーザーID</th>
+                    <th>ユーザー名</th>
+                    <th>出席日</th>
+                    <th>ステータス</th>
+                    <th>アクション</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in attendance_records %}
+                <tr>
+                    <td>{{ record.user_id }}</td>
+                    <td>{{ record.username }}</td>
+                    <td>{{ record.date }}</td>
+                    <td>{{ record.status }}</td>
+                    <td>
+                        <button class="btn" onclick="editRecord({{ record.id }})">編集</button>
+                        <button class="btn" onclick="deleteRecord({{ record.id }})">削除</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <!-- 追加のコンテンツ -->
+        <button class="btn" onclick="addNewRecord()">新規追加</button>
+    </div>
 
-    <form method="post">
-        <h2>休業日追加</h2>
-        <label>日付 (YYYY-MM-DD): <input type="date" name="holiday_date"></label>
-        <button type="submit">追加</button>
-    </form>
+    <script>
+        function editRecord(id) {
+            // 編集機能の実装
+            window.location.href = `/edit/${id}`;
+        }
 
-    <form method="post">
-        <h2>早退時間追加</h2>
-        <label>日付 (YYYY-MM-DD): <input type="date" name="early_leave_date"></label>
-        <label>時間 (HH:MM): <input type="time" name="early_leave_time"></label>
-        <button type="submit">追加</button>
-    </form>
+        function deleteRecord(id) {
+            if (confirm("本当に削除しますか？")) {
+                window.location.href = `/delete/${id}`;
+            }
+        }
 
-    <form method="post">
-        <h2>遅刻時間追加</h2>
-        <label>日付 (YYYY-MM-DD): <input type="date" name="late_arrival_date"></label>
-        <label>時間 (HH:MM): <input type="time" name="late_arrival_time"></label>
-        <button type="submit">追加</button>
-    </form>
-
-    <h2>休業日一覧</h2>
-    <ul>
-        {% for holiday in holidays %}
-        <li>{{ holiday }}
-            <form action="{{ url_for('delete_entry') }}" method="post" style="display:inline;">
-                <input type="hidden" name="entry_type" value="holiday">
-                <input type="hidden" name="date" value="{{ holiday }}">
-                <button type="submit">削除</button>
-            </form>
-        </li>
-        {% endfor %}
-    </ul>
-
-    <h2>早退一覧</h2>
-    <ul>
-        {% for date, time in early_leave_times.items() %}
-        <li>{{ date }} - {{ time }}
-            <form action="{{ url_for('delete_entry') }}" method="post" style="display:inline;">
-                <input type="hidden" name="entry_type" value="early_leave">
-                <input type="hidden" name="date" value="{{ date }}">
-                <button type="submit">削除</button>
-            </form>
-        </li>
-        {% endfor %}
-    </ul>
-
-    <h2>遅刻一覧</h2>
-    <ul>
-        {% for date, time in late_arrival_times.items() %}
-        <li>{{ date }} - {{ time }}
-            <form action="{{ url_for('delete_entry') }}" method="post" style="display:inline;">
-                <input type="hidden" name="entry_type" value="late_arrival">
-                <input type="hidden" name="date" value="{{ date }}">
-                <button type="submit">削除</button>
-            </form>
-        </li>
-        {% endfor %}
-    </ul>
-
-    <a href="{{ url_for('logout') }}">ログアウト</a>
+        function addNewRecord() {
+            window.location.href = `/add`;
+        }
+    </script>
 </body>
 </html>

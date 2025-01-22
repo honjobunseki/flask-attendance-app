@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>管理画面</title>
+</head>
+<body>
+    <h1>管理画面</h1>
+
+    <form method="POST">
+        <label for="date">日付:</label>
+        <input type="date" id="date" name="date" required>
+
+        <label for="status_type">ステータス:</label>
+        <select id="status_type" name="status_type" required>
+            <option value="休み">休み</option>
+            <option value="遅刻">遅刻</option>
+            <option value="早退">早退</option>
+        </select>
+
+        <label for="time">時間 (遅刻/早退のみ):</label>
+        <input type="time" id="time" name="time">
+
+        <button type="submit">追加</button>
+    </form>
+
+    <h2>現在のステータス</h2>
+    <h3>休日</h3>
+    <ul>
+        {% for holiday in holidays %}
+            <li>{{ holiday }} <form method="POST" action="{{ url_for('delete_status') }}" style="display:inline;">
+                <input type="hidden" name="date" value="{{ holiday }}">
+                <input type="hidden" name="status_type" value="休み">
+                <button type="submit">削除</button>
+            </form></li>
+        {% endfor %}
+    </ul>
+
+    <h3>勤務ステータス</h3>
+    <ul>
+        {% for date, time in work_status['遅刻'].items() %}
+            <li>{{ date }} 遅刻: {{ time }}
+                <form method="POST" action="{{ url_for('delete_status') }}" style="display:inline;">
+                    <input type="hidden" name="date" value="{{ date }}">
+                    <input type="hidden" name="status_type" value="遅刻">
+                    <button type="submit">削除</button>
+                </form>
+            </li>
+        {% endfor %}
+        {% for date, time in work_status['早退'].items() %}
+            <li>{{ date }} 早退: {{ time }}
+                <form method="POST" action="{{ url_for('delete_status') }}" style="display:inline;">
+                    <input type="hidden" name="date" value="{{ date }}">
+                    <input type="hidden" name="status_type" value="早退">
+                    <button type="submit">削除</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
