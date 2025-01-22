@@ -5,8 +5,11 @@ import logging
 from flask import Flask, render_template, request, redirect, url_for, flash, session, g
 import psycopg2
 from psycopg2.extras import DictCursor
+from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-from werkzeug.security import check_password_hash
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import smtplib
 
 # ロギングの設定
 logging.basicConfig(level=logging.INFO)
@@ -16,11 +19,17 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_secret_key")
 
+# SMTP設定
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SMTP_EMAIL = os.environ.get("SMTP_EMAIL")  # 環境変数から取得
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")  # 環境変数から取得
+
 # データベース接続設定
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
-    logger.error("DATABASE_URL is not set. Please configure it in your Render environment.")
-    raise Exception("DATABASE_URL is not set. Please configure it in your Render environment.")
+    logger.error("DATABASE_URL is not set.")
+    raise Exception("DATABASE_URL is not set.")
 
 def get_db():
     """データベース接続を取得"""
@@ -118,6 +127,36 @@ def calendar():
 
     return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
 
+@app.route("/popup")
+def popup():
+    """連絡フォームのポップアップを表示"""
+    day = request.args.get("day", "不明な日付")
+    return render_template("popup.html", day=day)
+
+@app.route("/send_email", methods=["POST"])
+def send_email():
+    """メールを送信する"""
+    subject = request.form.get("subject", "No Subject")
+    body = request.form.get("body", "No Content")
+    recipient = "masato_o@mac.com"
+
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = SMTP_EMAIL
+        msg["To"] = recipient
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain"))
+
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
+
+        return render_template("sent.html", message="メール送信が完了しました")
+    except Exception as e:
+        logger.error(f"Error sending email: {e}")
+        return render_template("sent.html", message=f"メール送信中にエラーが発生しました: {e}")
+
 # ログインが必要なデコレーター
 def login_required(f):
     @wraps(f)
@@ -133,8 +172,8 @@ def login():
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
-        admin_username = os.environ.get("ADMIN_USERNAME", "admin")
-        admin_password_hash = os.environ.get("ADMIN_PASSWORD_HASH")
+        admin_username = "masato"
+        admin_password_hash = generate_password_hash("masato2024")
 
         if username == admin_username and check_password_hash(admin_password_hash, password):
             session['logged_in'] = True
