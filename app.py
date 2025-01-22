@@ -9,6 +9,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import wraps
+from werkzeug.security import check_password_hash  # パスワードハッシュチェック用
 
 # ロギングの設定
 logging.basicConfig(level=logging.INFO)
@@ -49,6 +50,7 @@ def close_db(error):
 
 def create_tables():
     """必要なテーブルを作成する"""
+    db = None
     try:
         db = get_db()
         with db.cursor() as cur:
@@ -71,11 +73,14 @@ def create_tables():
             db.commit()
             logger.info("Tables created or already exist")
     except Exception as e:
-        db.rollback()
+        if db:
+            db.rollback()
         logger.error(f"Error creating tables: {e}")
 
-# テーブル作成
-create_tables()
+@app.before_first_request
+def initialize():
+    """アプリケーションの初回リクエスト時にテーブルを作成"""
+    create_tables()
 
 def load_holidays():
     """休日データをロード"""
@@ -109,10 +114,7 @@ def load_work_status():
         logger.error(f"Error loading work status: {e}")
         return []
 
-holidays = load_holidays()
-work_status = load_work_status()
-
-def get_status(date):
+def get_status(date, holidays, work_status):
     """指定された日付のステータスを取得"""
     now = datetime.datetime.now(pytz.timezone("Asia/Tokyo"))
 
@@ -182,9 +184,11 @@ def calendar():
         current_date -= datetime.timedelta(days=1)
 
     current_date = first_day
+    holidays = load_holidays()
+    work_status = load_work_status()
     while current_date <= last_day:
         is_holiday = current_date.weekday() >= 5 or current_date in holidays
-        status = get_status(current_date)
+        status = get_status(current_date, holidays, work_status)
         week.append((current_date.day, status, is_holiday))
         if len(week) == 7:
             month_days.append(week)
@@ -197,7 +201,7 @@ def calendar():
     if week:
         month_days.append(week)
 
-    today_status = get_status(today)
+    today_status = get_status(today, holidays, work_status)
 
     return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
 
@@ -247,9 +251,13 @@ def login():
         username = request.form.get("username")
         password = request.form.get("password")
         admin_username = os.environ.get("ADMIN_USERNAME", "admin")
-        admin_password = os.environ.get("ADMIN_PASSWORD", "password")  # 実際のアプリではハッシュ化されたパスワードを使用してください
+        admin_password_hash = os.environ.get("ADMIN_PASSWORD_HASH")  # ハッシュ化されたパスワードを使用
 
-        if username == admin_username and password == admin_password:
+        if not admin_password_hash:
+            flash("管理者パスワードが設定されていません。")
+            return redirect(url_for('login'))
+
+        if username == admin_username and check_password_hash(admin_password_hash, password):
             session['logged_in'] = True
             flash("ログインに成功しました")
             return redirect(url_for('manage'))
@@ -314,7 +322,11 @@ def manage():
                 db.commit()
                 flash("操作が成功しました")
         except Exception as e:
-            db.rollback()
+            if db:
+                try:
+                    db.rollback()
+                except Exception as rollback_error:
+                    logger.error(f"Rollback failed: {rollback_error}")
             logger.error(f"Error in manage operation: {e}")
             flash(f"操作中にエラーが発生しました: {e}")
 
