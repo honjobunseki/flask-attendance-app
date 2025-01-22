@@ -11,33 +11,28 @@
             padding: 20px;
         }
         .form-container {
-            width: 100%;
             max-width: 400px;
             margin: 0 auto;
             padding: 20px;
             border: 1px solid #ccc;
             border-radius: 5px;
             background-color: #f9f9f9;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
         h1 {
             font-size: 20px;
             margin-bottom: 20px;
-            text-align: center;
         }
         label {
-            font-size: 14px;
             display: block;
-            margin-bottom: 5px;
+            margin-bottom: 10px;
         }
         input[type="text"],
         textarea {
             width: 100%;
-            padding: 8px;
+            padding: 10px;
             margin-bottom: 15px;
             border: 1px solid #ccc;
             border-radius: 4px;
-            font-size: 14px;
         }
         textarea {
             resize: vertical;
@@ -50,8 +45,6 @@
             color: white;
             border: none;
             border-radius: 4px;
-            font-size: 14px;
-            cursor: pointer;
         }
         button:hover {
             background-color: #0056b3;
@@ -63,10 +56,10 @@
         <h1>連絡フォーム</h1>
         <form method="POST" action="/send_email">
             <label for="subject">件名:</label>
-            <input type="text" id="subject" name="subject" placeholder="件名を入力" required>
+            <input type="text" id="subject" name="subject" value="【連絡】{{ day }} - {{ status }}" required>
 
             <label for="body">本文:</label>
-            <textarea id="body" name="body" placeholder="本文を入力" required></textarea>
+            <textarea id="body" name="body" required>{{ day }} の状況についてご連絡します。</textarea>
 
             <button type="submit">送信する</button>
         </form>
