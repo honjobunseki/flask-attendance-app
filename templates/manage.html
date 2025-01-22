@@ -2,90 +2,37 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>管理ページ</title>
-    <style>
-        /* 既存のスタイル */
-        .container {
-            width: 80%;
-            margin: auto;
-            padding: 20px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-top: 20px;
-        }
-        th, td {
-            border: 1px solid #ccc;
-            padding: 10px;
-            text-align: center;
-        }
-        th {
-            background-color: #f2f2f2;
-        }
-        /* ボタンスタイル */
-        .btn {
-            padding: 5px 10px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            margin: 2px;
-        }
-        .btn:hover {
-            background-color: #0056b3;
-        }
-    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>管理ページ</h1>
-        <table>
-            <thead>
-                <tr>
-                    <th>ユーザーID</th>
-                    <th>ユーザー名</th>
-                    <th>出席日</th>
-                    <th>ステータス</th>
-                    <th>アクション</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for record in attendance_records %}
-                <tr>
-                    <td>{{ record.user_id }}</td>
-                    <td>{{ record.username }}</td>
-                    <td>{{ record.date }}</td>
-                    <td>{{ record.status }}</td>
-                    <td>
-                        <button class="btn" onclick="editRecord({{ record.id }})">編集</button>
-                        <button class="btn" onclick="deleteRecord({{ record.id }})">削除</button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        <!-- 追加のコンテンツ -->
-        <button class="btn" onclick="addNewRecord()">新規追加</button>
-    </div>
+    <h1>管理ページ</h1>
+    <form method="post">
+        <label>日付: <input type="date" name="date" required></label><br>
+        <label>時間: <input type="time" name="time"></label><br>
+        <label>直帰予定: <input type="checkbox" name="go_home"></label><br>
+        <button type="submit" name="action" value="add_holiday">休みを追加</button>
+        <button type="submit" name="action" value="delete_holiday">休みを削除</button><br>
+        <button type="submit" name="action" value="add_late">遅刻を追加</button>
+        <button type="submit" name="action" value="add_early">早退を追加</button><br>
+        <button type="submit" name="action" value="add_outside">外出中を追加</button>
+        <button type="submit" name="action" value="add_break">休憩中を追加</button><br>
+        <button type="submit" name="action" value="delete_status">ステータスを削除</button><br>
+    </form>
 
-    <script>
-        function editRecord(id) {
-            // 編集機能の実装
-            window.location.href = `/edit/${id}`;
-        }
+    <h2>休み</h2>
+    <ul>
+        {% for holiday in holidays %}
+            <li>{{ holiday.holiday_date }}</li>
+        {% endfor %}
+    </ul>
 
-        function deleteRecord(id) {
-            if (confirm("本当に削除しますか？")) {
-                window.location.href = `/delete/${id}`;
-            }
-        }
+    <h2>勤務ステータス</h2>
+    <ul>
+        {% for status in work_status %}
+            <li>{{ status.status_date }}: {{ status.status_type }} {{ status.time }}</li>
+        {% endfor %}
+    </ul>
 
-        function addNewRecord() {
-            window.location.href = `/add`;
-        }
-    </script>
+    <a href="{{ url_for('logout') }}">ログアウト</a>
 </body>
 </html>
