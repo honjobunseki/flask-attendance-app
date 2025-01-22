@@ -23,6 +23,7 @@ if not DATABASE_URL:
     raise Exception("DATABASE_URL is not set. Please configure it in your Render environment.")
 
 def get_db():
+    """データベース接続を取得"""
     if 'db' not in g:
         try:
             g.db = psycopg2.connect(DATABASE_URL, sslmode="require")
@@ -34,6 +35,7 @@ def get_db():
 
 @app.teardown_appcontext
 def close_db(error):
+    """アプリケーション終了時にデータベース接続を閉じる"""
     db = g.pop('db', None)
     if db is not None:
         db.close()
@@ -41,9 +43,8 @@ def close_db(error):
 
 def create_tables():
     """必要なテーブルを作成する"""
-    db = None
+    db = get_db()
     try:
-        db = get_db()
         with db.cursor() as cur:
             cur.execute("""
             CREATE TABLE IF NOT EXISTS holidays (
@@ -64,9 +65,58 @@ def create_tables():
             db.commit()
             logger.info("Tables created or already exist")
     except Exception as e:
-        if db:
-            db.rollback()
+        db.rollback()
         logger.error(f"Error creating tables: {e}")
+
+@app.route("/")
+def calendar():
+    """カレンダーを表示"""
+    today = datetime.date.today()
+    year, month = today.year, today.month
+    first_day = datetime.date(year, month, 1)
+    last_day = datetime.date(year, month + 1, 1) - datetime.timedelta(days=1) if month < 12 else datetime.date(year, 12, 31)
+
+    db = get_db()
+    holidays = []
+    work_status = []
+
+    try:
+        with db.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("SELECT holiday_date FROM holidays;")
+            holidays = [row['holiday_date'] for row in cur.fetchall()]
+            cur.execute("SELECT status_date, status_type, time FROM work_status;")
+            work_status = [dict(row) for row in cur.fetchall()]
+    except Exception as e:
+        logger.error(f"Error loading calendar data: {e}")
+
+    month_days = []
+    week = []
+    current_date = first_day
+
+    # 月の最初の週の空白セルを埋める
+    while current_date.weekday() != 0:
+        week.append((0, "", False))
+        current_date -= datetime.timedelta(days=1)
+
+    current_date = first_day
+    while current_date <= last_day:
+        is_holiday = current_date.weekday() >= 5 or current_date in holidays
+        status = next((ws['status_type'] for ws in work_status if ws['status_date'] == current_date), "")
+        week.append((current_date.day, status, is_holiday))
+        if len(week) == 7:
+            month_days.append(week)
+            week = []
+        current_date += datetime.timedelta(days=1)
+
+    # 最後の週の空白セルを埋める
+    while len(week) < 7:
+        week.append((0, "", False))
+    if week:
+        month_days.append(week)
+
+    today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
+
+    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
 
 # ログインが必要なデコレーター
 def login_required(f):
