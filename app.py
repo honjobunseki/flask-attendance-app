@@ -105,7 +105,7 @@ def calendar():
 
     current_date = first_day
     while current_date <= last_day:
-        is_holiday = current_date.weekday() >= 5 or current_date in holidays
+        is_holiday = current_date in holidays or current_date.weekday() >= 5
         status = ""
         for ws in work_status:
             if ws['status_date'] == current_date:
