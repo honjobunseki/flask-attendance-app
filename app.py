@@ -1,10 +1,9 @@
 import os
 import datetime
 import logging
-from flask import Flask, render_template, request, redirect, url_for, flash, session, g
+from flask import Flask, render_template, request, flash, g
 import psycopg2
 from psycopg2.extras import DictCursor
-from werkzeug.security import generate_password_hash, check_password_hash
 
 # ロギングの設定
 logging.basicConfig(level=logging.INFO)
@@ -71,13 +70,13 @@ def calendar():
     last_day = datetime.date(year, month + 1, 1) - datetime.timedelta(days=1) if month < 12 else datetime.date(year, 12, 31)
 
     db = get_db()
-    holidays = []
+    holidays = set()
     work_status = []
 
     try:
         with db.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("SELECT holiday_date FROM holidays;")
-            holidays = [row['holiday_date'] for row in cur.fetchall()]
+            holidays = {row['holiday_date'] for row in cur.fetchall()}  # `set` に変更
             cur.execute("SELECT status_date, status_type, time FROM work_status;")
             work_status = [dict(row) for row in cur.fetchall()]
     except Exception as e:
@@ -94,7 +93,7 @@ def calendar():
 
     current_date = first_day
     while current_date <= last_day:
-        # 土日または管理画面で「休み」として登録された日を赤く塗りつぶす
+        # 土日または管理画面で追加された「休み」を赤く塗りつぶす
         is_holiday = current_date.weekday() >= 5 or current_date in holidays
         status = ""
         for ws in work_status:
