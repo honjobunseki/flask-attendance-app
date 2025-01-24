@@ -73,37 +73,6 @@ def create_tables():
         db.rollback()
         logger.error(f"Error creating tables: {e}")
 
-@app.route("/popup", methods=["GET", "POST"])
-def popup():
-    """ポップアップウィンドウでメール送信"""
-    if request.method == "POST":
-        day = request.form.get("day")
-        subject = request.form.get("subject", f"{day} の連絡事項")
-        body = request.form.get("body", "特記事項はありません。")
-
-        try:
-            # メール送信処理
-            msg = MIMEMultipart()
-            msg["From"] = SMTP_EMAIL
-            msg["To"] = "masato_o@mac.com"  # 固定の送信先
-            msg["Subject"] = subject
-            msg.attach(MIMEText(body, "plain"))
-
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-                server.starttls()
-                server.login(SMTP_EMAIL, SMTP_PASSWORD)
-                server.sendmail(SMTP_EMAIL, "masato_o@mac.com", msg.as_string())
-                flash("メールが正常に送信されました")
-        except Exception as e:
-            logger.error(f"Error sending email: {e}")
-            flash(f"メール送信中にエラーが発生しました: {e}")
-
-        return redirect(url_for("calendar"))
-
-    # GETリクエスト時
-    day = request.args.get("day", "不明な日付")
-    return render_template("popup.html", day=day)
-
 @app.route("/")
 def calendar():
     """カレンダーを表示"""
@@ -178,11 +147,18 @@ def manage():
 
         try:
             with db.cursor() as cur:
-                if action == "add_status":
+                if action == "add_holiday":
+                    cur.execute("""INSERT INTO holidays (holiday_date)
+                        VALUES (%s)
+                        ON CONFLICT (holiday_date) DO NOTHING;""",
+                        (date,))
+                elif action == "add_status":
                     cur.execute("""INSERT INTO work_status (status_date, status_type, time)
                         VALUES (%s, %s, %s)
                         ON CONFLICT (status_date, status_type) DO UPDATE SET time = EXCLUDED.time;""",
                         (date, status_type, time))
+                elif action == "delete_holiday":
+                    cur.execute("""DELETE FROM holidays WHERE holiday_date = %s;""", (date,))
                 elif action == "delete_status":
                     cur.execute("""DELETE FROM work_status WHERE status_date = %s AND status_type = %s;""", (date, status_type))
                 db.commit()
