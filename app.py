@@ -7,6 +7,7 @@ from psycopg2.extras import DictCursor
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import smtplib
+import jpholiday  # 日本の祝日判定ライブラリ
 
 # ロギングの設定
 logging.basicConfig(level=logging.INFO)
@@ -84,7 +85,7 @@ def calendar():
     current_date = first_day
     while current_date <= last_day:
         # 土日または「休み」の設定がある場合は赤く塗りつぶす
-        is_holiday = current_date.weekday() >= 5 or current_date in holidays
+        is_holiday = current_date.weekday() >= 5 or current_date in holidays or jpholiday.is_holiday(current_date)
         status = ""
         for ws in work_status:
             if ws['status_date'] == current_date:
@@ -192,7 +193,7 @@ def send_email():
             server.login(SMTP_EMAIL, SMTP_PASSWORD)
             server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
 
-        flash("メール送信が完了しました", "success")
+        flash("送信が完了しました", "success")
     except Exception as e:
         logger.error(f"Error sending email: {e}")
         flash(f"メール送信中にエラーが発生しました: {e}", "error")
