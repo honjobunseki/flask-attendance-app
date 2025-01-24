@@ -1,10 +1,12 @@
 import os
 import datetime
 import logging
-from flask import Flask, render_template, request, flash, g
+from flask import Flask, render_template, request, flash, redirect, url_for, g
 import psycopg2
 from psycopg2.extras import DictCursor
-import jpholiday  # 日本の祝日を扱うライブラリ
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import smtplib
 
 # ロギングの設定
 logging.basicConfig(level=logging.INFO)
@@ -13,6 +15,12 @@ logger = logging.getLogger(__name__)
 # Flask アプリケーションの初期化
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_secret_key")
+
+# SMTP 設定
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SMTP_EMAIL = os.environ.get("SMTP_EMAIL")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
 
 # データベース接続設定
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -76,12 +84,12 @@ def calendar():
     current_date = first_day
     while current_date <= last_day:
         # 土日または「休み」の設定がある場合は赤く塗りつぶす
-        is_holiday = current_date.weekday() >= 5 or jpholiday.is_holiday(current_date) or current_date in holidays
+        is_holiday = current_date.weekday() >= 5 or current_date in holidays
         status = ""
         for ws in work_status:
             if ws['status_date'] == current_date:
                 if ws['status_type'] == "休み":
-                    is_holiday = True  # 「休み」を赤く塗りつぶす条件に追加
+                    is_holiday = True
                 elif ws['status_type'] == "遅刻":
                     status = f"{ws['time']} 出勤予定"
                 elif ws['status_type'] == "早退":
@@ -107,6 +115,89 @@ def calendar():
     today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
 
     return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
+
+@app.route("/manage", methods=["GET", "POST"])
+def manage():
+    """管理画面"""
+    db = get_db()
+    if request.method == "POST":
+        action = request.form.get("action")
+        date = request.form.get("date")
+        time = request.form.get("time")
+        status_type = request.form.get("status_type")
+
+        try:
+            with db.cursor() as cur:
+                if action == "add_status":
+                    cur.execute("""
+                        INSERT INTO work_status (status_date, status_type, time)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (status_date, status_type) DO UPDATE
+                        SET time = EXCLUDED.time;
+                    """, (date, status_type, time))
+                elif action == "delete_status":
+                    cur.execute("""
+                        DELETE FROM work_status
+                        WHERE status_date = %s AND status_type = %s;
+                    """, (date, status_type))
+                elif action == "add_holiday":
+                    cur.execute("""
+                        INSERT INTO holidays (holiday_date)
+                        VALUES (%s)
+                        ON CONFLICT (holiday_date) DO NOTHING;
+                    """, (date,))
+                elif action == "delete_holiday":
+                    cur.execute("""
+                        DELETE FROM holidays
+                        WHERE holiday_date = %s;
+                    """, (date,))
+                db.commit()
+                flash("操作が成功しました")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error in manage operation: {e}")
+            flash(f"エラーが発生しました: {e}")
+
+    with db.cursor(cursor_factory=DictCursor) as cur:
+        cur.execute("SELECT * FROM holidays;")
+        holidays = cur.fetchall()
+        cur.execute("SELECT * FROM work_status;")
+        work_status = cur.fetchall()
+
+    return render_template("manage.html", holidays=holidays, work_status=work_status)
+
+@app.route("/popup")
+def popup():
+    """ポップアップウィンドウを表示"""
+    day = request.args.get("day", "不明な日付")
+    status = request.args.get("status", "特になし")
+    return render_template("popup.html", day=day, status=status)
+
+@app.route("/send_email", methods=["POST"])
+def send_email():
+    """メールを送信する"""
+    subject = request.form.get("subject", "No Subject")
+    body = request.form.get("body", "No Content")
+    recipient = "masato_o@mac.com"
+
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = SMTP_EMAIL
+        msg["To"] = recipient
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain"))
+
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
+
+        flash("メール送信が完了しました", "success")
+    except Exception as e:
+        logger.error(f"Error sending email: {e}")
+        flash(f"メール送信中にエラーが発生しました: {e}", "error")
+
+    return redirect(url_for("calendar"))
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
