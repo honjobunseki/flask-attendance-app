@@ -7,7 +7,7 @@ from psycopg2.extras import DictCursor
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import smtplib
-import jpholiday  # 日本の祝日判定ライブラリ
+import jpholiday
 
 # ロギングの設定
 logging.basicConfig(level=logging.INFO)
@@ -62,17 +62,13 @@ def calendar():
 
     try:
         with db.cursor(cursor_factory=DictCursor) as cur:
-            # 休日データを取得
             cur.execute("SELECT holiday_date FROM holidays;")
             holidays = [row['holiday_date'] for row in cur.fetchall()]
-
-            # 勤務状態データを取得
             cur.execute("SELECT status_date, status_type, time FROM work_status;")
             work_status = [dict(row) for row in cur.fetchall()]
     except Exception as e:
         logger.error(f"Error loading data: {e}")
 
-    # カレンダー生成
     month_days = []
     week = []
     current_date = first_day
@@ -84,7 +80,6 @@ def calendar():
 
     current_date = first_day
     while current_date <= last_day:
-        # 土日または「休み」の設定がある場合は赤く塗りつぶす
         is_holiday = current_date.weekday() >= 5 or current_date in holidays or jpholiday.is_holiday(current_date)
         status = ""
         for ws in work_status:
@@ -107,7 +102,6 @@ def calendar():
             week = []
         current_date += datetime.timedelta(days=1)
 
-    # 最後の週の空白セルを埋める
     while len(week) < 7:
         week.append((0, "", False))
     if week:
@@ -176,7 +170,7 @@ def popup():
 
 @app.route("/send_email", methods=["POST"])
 def send_email():
-    """メールを送信する"""
+    """メールを送信して sent.html に移行"""
     subject = request.form.get("subject", "No Subject")
     body = request.form.get("body", "No Content")
     recipient = "masato_o@mac.com"
@@ -193,12 +187,10 @@ def send_email():
             server.login(SMTP_EMAIL, SMTP_PASSWORD)
             server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
 
-        flash("送信が完了しました", "success")
+        return render_template("sent.html", message="送信が完了しました")
     except Exception as e:
         logger.error(f"Error sending email: {e}")
-        flash(f"メール送信中にエラーが発生しました: {e}", "error")
-
-    return redirect(url_for("calendar"))
+        return render_template("sent.html", message=f"送信中にエラーが発生しました: {e}")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
