@@ -5,11 +5,8 @@ import logging
 from flask import Flask, render_template, request, redirect, url_for, flash, session, g
 import psycopg2
 from psycopg2.extras import DictCursor
-from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-import smtplib
+from werkzeug.security import check_password_hash
 
 # ロギングの設定
 logging.basicConfig(level=logging.INFO)
@@ -19,20 +16,13 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_secret_key")
 
-# SMTP設定
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-SMTP_EMAIL = os.environ.get("SMTP_EMAIL")
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
-
 # データベース接続設定
 DATABASE_URL = os.environ.get("DATABASE_URL")
 if not DATABASE_URL:
-    logger.error("DATABASE_URL is not set.")
-    raise Exception("DATABASE_URL is not set.")
+    logger.error("DATABASE_URL is not set. Please configure it in your Render environment.")
+    raise Exception("DATABASE_URL is not set. Please configure it in your Render environment.")
 
 def get_db():
-    """データベース接続を取得"""
     if 'db' not in g:
         try:
             g.db = psycopg2.connect(DATABASE_URL, sslmode="require")
@@ -44,7 +34,6 @@ def get_db():
 
 @app.teardown_appcontext
 def close_db(error):
-    """アプリケーション終了時にデータベース接続を閉じる"""
     db = g.pop('db', None)
     if db is not None:
         db.close()
@@ -52,8 +41,9 @@ def close_db(error):
 
 def create_tables():
     """必要なテーブルを作成する"""
-    db = get_db()
+    db = None
     try:
+        db = get_db()
         with db.cursor() as cur:
             cur.execute("""
             CREATE TABLE IF NOT EXISTS holidays (
@@ -74,72 +64,45 @@ def create_tables():
             db.commit()
             logger.info("Tables created or already exist")
     except Exception as e:
-        db.rollback()
+        if db:
+            db.rollback()
         logger.error(f"Error creating tables: {e}")
 
-@app.route("/")
-def calendar():
-    """カレンダーを表示"""
-    today = datetime.date.today()
-    year, month = today.year, today.month
-    first_day = datetime.date(year, month, 1)
-    last_day = datetime.date(year, month + 1, 1) - datetime.timedelta(days=1) if month < 12 else datetime.date(year, 12, 31)
+# ログインが必要なデコレーター
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
-    db = get_db()
-    holidays = []
-    work_status = []
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    """管理者ログインページ"""
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+        admin_username = os.environ.get("ADMIN_USERNAME", "admin")
+        admin_password_hash = os.environ.get("ADMIN_PASSWORD_HASH")
 
-    try:
-        with db.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("SELECT holiday_date FROM holidays;")
-            holidays = [row['holiday_date'] for row in cur.fetchall()]
-            cur.execute("SELECT status_date, status_type, time FROM work_status;")
-            work_status = [dict(row) for row in cur.fetchall()]
-    except Exception as e:
-        logger.error(f"Error loading calendar data: {e}")
+        if username == admin_username and check_password_hash(admin_password_hash, password):
+            session['logged_in'] = True
+            flash("ログインに成功しました")
+            return redirect(url_for('manage'))
+        else:
+            flash("ユーザー名またはパスワードが間違っています")
+    return render_template("login.html")
 
-    month_days = []
-    week = []
-    current_date = first_day
-
-    # 月の最初の週の空白セルを埋める
-    while current_date.weekday() != 0:
-        week.append((0, "", False))
-        current_date -= datetime.timedelta(days=1)
-
-    current_date = first_day
-    while current_date <= last_day:
-        is_holiday = current_date.weekday() >= 5 or current_date in holidays
-        status = ""
-        for ws in work_status:
-            if ws['status_date'] == current_date:
-                if ws['status_type'] == "遅刻":
-                    status = f"{ws['time']} 出勤予定"
-                elif ws['status_type'] == "早退":
-                    status = f"{ws['time']} 早退予定"
-                elif ws['status_type'] == "直帰予定":
-                    status = "外出中（直帰予定）"
-                elif ws['status_type'] == "外出中":
-                    status = "外出中"
-                elif ws['status_type'] == "休憩中":
-                    status = "休憩中"
-        week.append((current_date.day, status, is_holiday))
-        if len(week) == 7:
-            month_days.append(week)
-            week = []
-        current_date += datetime.timedelta(days=1)
-
-    # 最後の週の空白セルを埋める
-    while len(week) < 7:
-        week.append((0, "", False))
-    if week:
-        month_days.append(week)
-
-    today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
-
-    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
+@app.route("/logout")
+def logout():
+    """ログアウト"""
+    session.pop('logged_in', None)
+    flash("ログアウトしました")
+    return redirect(url_for('login'))
 
 @app.route("/manage", methods=["GET", "POST"])
+@login_required
 def manage():
     """管理画面"""
     db = get_db()
@@ -147,22 +110,25 @@ def manage():
         action = request.form.get("action")
         date = request.form.get("date")
         time = request.form.get("time")
-        status_type = request.form.get("status_type")
-
+        go_home = request.form.get("go_home")
         try:
             with db.cursor() as cur:
-                if action == "add_status":
-                    cur.execute("""
-                        INSERT INTO work_status (status_date, status_type, time)
-                        VALUES (%s, %s, %s)
-                        ON CONFLICT (status_date, status_type) DO UPDATE
-                        SET time = EXCLUDED.time;
-                    """, (date, status_type, time))
+                if action == "add_holiday":
+                    cur.execute("INSERT INTO holidays (holiday_date) VALUES (%s) ON CONFLICT DO NOTHING;", (date,))
+                elif action == "delete_holiday":
+                    cur.execute("DELETE FROM holidays WHERE holiday_date = %s;", (date,))
+                elif action == "add_late":
+                    cur.execute("INSERT INTO work_status (status_date, status_type, time) VALUES (%s, '遅刻', %s) ON CONFLICT DO NOTHING;", (date, time))
+                elif action == "add_early":
+                    cur.execute("INSERT INTO work_status (status_date, status_type, time) VALUES (%s, '早退', %s) ON CONFLICT DO NOTHING;", (date, time))
+                elif action == "add_outside":
+                    status_type = "直帰予定" if go_home else "外出中"
+                    cur.execute("INSERT INTO work_status (status_date, status_type) VALUES (%s, %s) ON CONFLICT DO NOTHING;", (date, status_type))
+                elif action == "add_break":
+                    cur.execute("INSERT INTO work_status (status_date, status_type) VALUES (%s, '休憩中') ON CONFLICT DO NOTHING;", (date,))
                 elif action == "delete_status":
-                    cur.execute("""
-                        DELETE FROM work_status
-                        WHERE status_date = %s AND status_type = %s;
-                    """, (date, status_type))
+                    status_type = request.form.get("status_type")
+                    cur.execute("DELETE FROM work_status WHERE status_date = %s AND status_type = %s;", (date, status_type))
                 db.commit()
                 flash("操作が成功しました")
         except Exception as e:
