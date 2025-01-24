@@ -6,6 +6,30 @@
 </head>
 <body>
     <h1>管理ページ</h1>
+
+    <!-- ステータス追加フォーム -->
+    <h2>ステータスを追加する</h2>
+    <form method="POST" action="/manage">
+        <input type="hidden" name="action" value="add_status">
+        <label for="date">日付:</label>
+        <input type="date" id="date" name="date" required>
+        <label for="status_type">ステータス:</label>
+        <select id="status_type" name="status_type" required>
+            <option value="休み">休み</option>
+            <option value="遅刻">遅刻</option>
+            <option value="早退">早退</option>
+            <option value="外出中">外出中</option>
+            <option value="休憩中">休憩中</option>
+        </select>
+        <label for="time">時間 (必要な場合のみ):</label>
+        <input type="time" id="time" name="time">
+        <label for="go_home">
+            <input type="checkbox" id="go_home" name="go_home" value="1"> 直帰予定
+        </label>
+        <button type="submit">追加</button>
+    </form>
+
+    <!-- ステータス一覧 -->
     <h2>ステータス一覧</h2>
     <table border="1">
         <thead>
