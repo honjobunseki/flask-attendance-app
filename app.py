@@ -62,8 +62,6 @@ def calendar():
     except Exception as e:
         logger.error(f"Error loading data: {e}")
 
-    logger.info(f"Holidays from DB: {holidays}")
-
     # カレンダー生成
     month_days = []
     week = []
@@ -76,11 +74,14 @@ def calendar():
 
     current_date = first_day
     while current_date <= last_day:
+        # 土日または「休み」の設定がある場合は赤く塗りつぶす
         is_holiday = current_date.weekday() >= 5 or current_date in holidays
         status = ""
         for ws in work_status:
             if ws['status_date'] == current_date:
-                if ws['status_type'] == "遅刻":
+                if ws['status_type'] == "休み":
+                    is_holiday = True  # 「休み」を赤く塗りつぶす条件に追加
+                elif ws['status_type'] == "遅刻":
                     status = f"{ws['time']} 出勤予定"
                 elif ws['status_type'] == "早退":
                     status = f"{ws['time']} 早退予定"
@@ -104,9 +105,7 @@ def calendar():
 
     today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
 
-    logger.info(f"Generated month_days: {month_days}")
-
-    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, holidays=holidays, today_status=today_status)
+    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
 
 @app.route("/manage", methods=["GET", "POST"])
 def manage():
