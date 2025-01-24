@@ -1,9 +1,15 @@
 import os
 import datetime
+import pytz
 import logging
-from flask import Flask, render_template, request, flash, g
+from flask import Flask, render_template, request, redirect, url_for, flash, session, g
 import psycopg2
 from psycopg2.extras import DictCursor
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import smtplib
 
 # ロギングの設定
 logging.basicConfig(level=logging.INFO)
@@ -12,6 +18,12 @@ logger = logging.getLogger(__name__)
 # Flask アプリケーションの初期化
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_secret_key")
+
+# SMTP設定
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SMTP_EMAIL = os.environ.get("SMTP_EMAIL")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
 
 # データベース接続設定
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -43,18 +55,22 @@ def create_tables():
     db = get_db()
     try:
         with db.cursor() as cur:
-            cur.execute("""CREATE TABLE IF NOT EXISTS holidays (
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS holidays (
                 id SERIAL PRIMARY KEY,
                 holiday_date DATE NOT NULL UNIQUE
-            );""")
-            cur.execute("""CREATE TABLE IF NOT EXISTS work_status (
+            );
+            """)
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS work_status (
                 id SERIAL PRIMARY KEY,
                 status_date DATE NOT NULL,
                 status_type VARCHAR(20) NOT NULL,
                 time VARCHAR(10),
                 additional_info TEXT,
                 UNIQUE (status_date, status_type)
-            );""")
+            );
+            """)
             db.commit()
             logger.info("Tables created or already exist")
     except Exception as e:
@@ -70,13 +86,17 @@ def calendar():
     last_day = datetime.date(year, month + 1, 1) - datetime.timedelta(days=1) if month < 12 else datetime.date(year, 12, 31)
 
     db = get_db()
-    holidays = set()
+    holidays = []
     work_status = []
 
+    # データベースから「休み」と「ステータス」を取得
     try:
         with db.cursor(cursor_factory=DictCursor) as cur:
+            # 「休み」の日付を取得
             cur.execute("SELECT holiday_date FROM holidays;")
-            holidays = {row['holiday_date'] for row in cur.fetchall()}  # `set` に変更
+            holidays = [row['holiday_date'] for row in cur.fetchall()]
+
+            # 他のステータスを取得
             cur.execute("SELECT status_date, status_type, time FROM work_status;")
             work_status = [dict(row) for row in cur.fetchall()]
     except Exception as e:
@@ -93,8 +113,10 @@ def calendar():
 
     current_date = first_day
     while current_date <= last_day:
-        # 土日または管理画面で追加された「休み」を赤く塗りつぶす
+        # 土日または「休み」の場合は赤く塗りつぶす
         is_holiday = current_date.weekday() >= 5 or current_date in holidays
+
+        # 各日のステータスを取得
         status = ""
         for ws in work_status:
             if ws['status_date'] == current_date:
@@ -123,47 +145,6 @@ def calendar():
     today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
 
     return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
-
-@app.route("/manage", methods=["GET", "POST"])
-def manage():
-    """管理画面"""
-    db = get_db()
-    if request.method == "POST":
-        action = request.form.get("action")
-        date = request.form.get("date")
-        time = request.form.get("time")
-        status_type = request.form.get("status_type")
-
-        try:
-            with db.cursor() as cur:
-                if action == "add_holiday":
-                    cur.execute("""INSERT INTO holidays (holiday_date)
-                        VALUES (%s)
-                        ON CONFLICT (holiday_date) DO NOTHING;""",
-                        (date,))
-                elif action == "add_status":
-                    cur.execute("""INSERT INTO work_status (status_date, status_type, time)
-                        VALUES (%s, %s, %s)
-                        ON CONFLICT (status_date, status_type) DO UPDATE SET time = EXCLUDED.time;""",
-                        (date, status_type, time))
-                elif action == "delete_holiday":
-                    cur.execute("""DELETE FROM holidays WHERE holiday_date = %s;""", (date,))
-                elif action == "delete_status":
-                    cur.execute("""DELETE FROM work_status WHERE status_date = %s AND status_type = %s;""", (date, status_type))
-                db.commit()
-                flash("操作が成功しました")
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Error in manage operation: {e}")
-            flash(f"エラーが発生しました: {e}")
-
-    with db.cursor(cursor_factory=DictCursor) as cur:
-        cur.execute("SELECT * FROM holidays;")
-        holidays = cur.fetchall()
-        cur.execute("SELECT * FROM work_status;")
-        work_status = cur.fetchall()
-
-    return render_template("manage.html", holidays=holidays, work_status=work_status)
 
 if __name__ == "__main__":
     with app.app_context():
