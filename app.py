@@ -1,8 +1,7 @@
 import os
 import datetime
-import pytz
 import logging
-from flask import Flask, render_template, request, flash, g
+from flask import Flask, render_template, request, flash, redirect, url_for, g
 import psycopg2
 from psycopg2.extras import DictCursor
 
@@ -108,6 +107,56 @@ def calendar():
     logger.info(f"Generated month_days: {month_days}")
 
     return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, holidays=holidays, today_status=today_status)
+
+@app.route("/manage", methods=["GET", "POST"])
+def manage():
+    """管理画面"""
+    db = get_db()
+    if request.method == "POST":
+        action = request.form.get("action")
+        date = request.form.get("date")
+        time = request.form.get("time")
+        status_type = request.form.get("status_type")
+
+        try:
+            with db.cursor() as cur:
+                if action == "add_status":
+                    cur.execute("""
+                        INSERT INTO work_status (status_date, status_type, time)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (status_date, status_type) DO UPDATE
+                        SET time = EXCLUDED.time;
+                    """, (date, status_type, time))
+                elif action == "delete_status":
+                    cur.execute("""
+                        DELETE FROM work_status
+                        WHERE status_date = %s AND status_type = %s;
+                    """, (date, status_type))
+                elif action == "add_holiday":
+                    cur.execute("""
+                        INSERT INTO holidays (holiday_date)
+                        VALUES (%s)
+                        ON CONFLICT (holiday_date) DO NOTHING;
+                    """, (date,))
+                elif action == "delete_holiday":
+                    cur.execute("""
+                        DELETE FROM holidays
+                        WHERE holiday_date = %s;
+                    """, (date,))
+                db.commit()
+                flash("操作が成功しました")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error in manage operation: {e}")
+            flash(f"エラーが発生しました: {e}")
+
+    with db.cursor(cursor_factory=DictCursor) as cur:
+        cur.execute("SELECT * FROM holidays;")
+        holidays = cur.fetchall()
+        cur.execute("SELECT * FROM work_status;")
+        work_status = cur.fetchall()
+
+    return render_template("manage.html", holidays=holidays, work_status=work_status)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
