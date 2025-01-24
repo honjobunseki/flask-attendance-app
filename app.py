@@ -1,15 +1,10 @@
 import os
 import datetime
-import pytz
 import logging
 from flask import Flask, render_template, request, redirect, url_for, flash, session, g
 import psycopg2
 from psycopg2.extras import DictCursor
 from werkzeug.security import generate_password_hash, check_password_hash
-from functools import wraps
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-import smtplib
 
 # ロギングの設定
 logging.basicConfig(level=logging.INFO)
@@ -18,12 +13,6 @@ logger = logging.getLogger(__name__)
 # Flask アプリケーションの初期化
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_secret_key")
-
-# SMTP設定
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
-SMTP_EMAIL = os.environ.get("SMTP_EMAIL")
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
 
 # データベース接続設定
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -105,7 +94,8 @@ def calendar():
 
     current_date = first_day
     while current_date <= last_day:
-        is_holiday = current_date in holidays or current_date.weekday() >= 5
+        # 管理画面で「休み」に設定した日だけを休日とする
+        is_holiday = current_date in holidays
         status = ""
         for ws in work_status:
             if ws['status_date'] == current_date:
