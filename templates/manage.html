@@ -6,33 +6,33 @@
 </head>
 <body>
     <h1>管理ページ</h1>
-    <form method="post">
-        <label>日付: <input type="date" name="date" required></label><br>
-        <label>時間: <input type="time" name="time"></label><br>
-        <label>直帰予定: <input type="checkbox" name="go_home"></label><br>
-        <button type="submit" name="action" value="add_holiday">休みを追加</button>
-        <button type="submit" name="action" value="delete_holiday">休みを削除</button><br>
-        <button type="submit" name="action" value="add_late">遅刻を追加</button>
-        <button type="submit" name="action" value="add_early">早退を追加</button><br>
-        <button type="submit" name="action" value="add_outside">外出中を追加</button>
-        <button type="submit" name="action" value="add_break">休憩中を追加</button><br>
-        <button type="submit" name="action" value="delete_status">ステータスを削除</button><br>
-    </form>
-
-    <h2>休み</h2>
-    <ul>
-        {% for holiday in holidays %}
-            <li>{{ holiday.holiday_date }}</li>
-        {% endfor %}
-    </ul>
-
-    <h2>勤務ステータス</h2>
-    <ul>
-        {% for status in work_status %}
-            <li>{{ status.status_date }}: {{ status.status_type }} {{ status.time }}</li>
-        {% endfor %}
-    </ul>
-
-    <a href="{{ url_for('logout') }}">ログアウト</a>
+    <h2>ステータス一覧</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>日付</th>
+                <th>ステータス</th>
+                <th>時間</th>
+                <th>アクション</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for status in work_status %}
+            <tr>
+                <td>{{ status.status_date }}</td>
+                <td>{{ status.status_type }}</td>
+                <td>{{ status.time or '' }}</td>
+                <td>
+                    <form method="POST" action="/manage">
+                        <input type="hidden" name="action" value="delete_status">
+                        <input type="hidden" name="date" value="{{ status.status_date }}">
+                        <input type="hidden" name="status_type" value="{{ status.status_type }}">
+                        <button type="submit">削除</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </body>
 </html>
