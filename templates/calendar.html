@@ -8,12 +8,14 @@
         table {
             width: 100%;
             border-collapse: collapse;
+            table-layout: fixed; /* 列幅を均等にする */
         }
         th, td {
             border: 1px solid #ccc;
             text-align: center;
             padding: 8px;
             height: 100px; /* 行の高さを固定 */
+            word-wrap: break-word; /* 長いテキストを折り返す */
         }
         th {
             background-color: #f2f2f2;
