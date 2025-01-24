@@ -94,8 +94,8 @@ def calendar():
 
     current_date = first_day
     while current_date <= last_day:
-        # 管理画面で「休み」に設定した日だけを休日とする
-        is_holiday = current_date in holidays
+        # 土日または管理画面で「休み」として登録された日を赤く塗りつぶす
+        is_holiday = current_date.weekday() >= 5 or current_date in holidays
         status = ""
         for ws in work_status:
             if ws['status_date'] == current_date:
