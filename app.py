@@ -2,11 +2,9 @@ import os
 import datetime
 import pytz
 import logging
-from flask import Flask, render_template, request, redirect, url_for, flash, session, g
+from flask import Flask, render_template, request, flash, g
 import psycopg2
 from psycopg2.extras import DictCursor
-from werkzeug.security import generate_password_hash, check_password_hash
-from functools import wraps
 
 # ロギングの設定
 logging.basicConfig(level=logging.INFO)
@@ -41,55 +39,33 @@ def close_db(error):
         db.close()
         logger.info("Database connection closed")
 
-def create_tables():
-    """必要なテーブルを作成する"""
-    db = get_db()
-    try:
-        with db.cursor() as cur:
-            cur.execute("""
-            CREATE TABLE IF NOT EXISTS holidays (
-                id SERIAL PRIMARY KEY,
-                holiday_date DATE NOT NULL UNIQUE
-            );
-            """)
-            cur.execute("""
-            CREATE TABLE IF NOT EXISTS work_status (
-                id SERIAL PRIMARY KEY,
-                status_date DATE NOT NULL,
-                status_type VARCHAR(20) NOT NULL,
-                time VARCHAR(10),
-                additional_info TEXT,
-                UNIQUE (status_date, status_type)
-            );
-            """)
-            db.commit()
-            logger.info("Tables created or already exist")
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error creating tables: {e}")
-
 @app.route("/")
 def calendar():
     """カレンダーを表示"""
     today = datetime.date.today()
     year, month = today.year, today.month
     first_day = datetime.date(year, month, 1)
-    last_day = datetime.date(year, month + 1, 1) - datetime.timedelta(days=1) if month < 12 else datetime.date(year, 12, 31)
+    last_day = (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)) if month < 12 else datetime.date(year, 12, 31)
 
     db = get_db()
-    holidays = set()
+    holidays = []
     work_status = []
 
-    # データベースから「休み」と「ステータス」を取得
     try:
         with db.cursor(cursor_factory=DictCursor) as cur:
+            # 休日データを取得
             cur.execute("SELECT holiday_date FROM holidays;")
-            holidays.update(row['holiday_date'] for row in cur.fetchall())
+            holidays = [row['holiday_date'] for row in cur.fetchall()]
+
+            # 勤務状態データを取得
             cur.execute("SELECT status_date, status_type, time FROM work_status;")
             work_status = [dict(row) for row in cur.fetchall()]
     except Exception as e:
-        logger.error(f"Error loading calendar data: {e}")
+        logger.error(f"Error loading data: {e}")
 
+    logger.info(f"Holidays from DB: {holidays}")
+
+    # カレンダー生成
     month_days = []
     week = []
     current_date = first_day
@@ -127,65 +103,12 @@ def calendar():
     if week:
         month_days.append(week)
 
-    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days)
+    today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
 
-@app.route("/manage", methods=["GET", "POST"])
-def manage():
-    """管理画面"""
-    db = get_db()
-    if request.method == "POST":
-        action = request.form.get("action")
-        date = request.form.get("date")
-        time = request.form.get("time")
-        status_type = request.form.get("status_type")
+    logger.info(f"Generated month_days: {month_days}")
 
-        try:
-            with db.cursor() as cur:
-                if action == "add_status":
-                    cur.execute("""
-                        INSERT INTO work_status (status_date, status_type, time)
-                        VALUES (%s, %s, %s)
-                        ON CONFLICT (status_date, status_type) DO UPDATE
-                        SET time = EXCLUDED.time;
-                    """, (date, status_type, time))
-                elif action == "add_holiday":
-                    cur.execute("""
-                        INSERT INTO holidays (holiday_date)
-                        VALUES (%s)
-                        ON CONFLICT DO NOTHING;
-                    """, (date,))
-                elif action == "delete_status":
-                    cur.execute("""
-                        DELETE FROM work_status
-                        WHERE status_date = %s AND status_type = %s;
-                    """, (date, status_type))
-                elif action == "delete_holiday":
-                    cur.execute("""
-                        DELETE FROM holidays
-                        WHERE holiday_date = %s;
-                    """, (date,))
-                db.commit()
-                flash("操作が成功しました")
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Error in manage operation: {e}")
-            flash(f"エラーが発生しました: {e}")
-
-    holidays = []
-    work_status = []
-    try:
-        with db.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("SELECT * FROM holidays;")
-            holidays = cur.fetchall()
-            cur.execute("SELECT * FROM work_status;")
-            work_status = cur.fetchall()
-    except Exception as e:
-        logger.error(f"Error loading manage data: {e}")
-
-    return render_template("manage.html", holidays=holidays, work_status=work_status)
+    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, holidays=holidays, today_status=today_status)
 
 if __name__ == "__main__":
-    with app.app_context():
-        create_tables()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
