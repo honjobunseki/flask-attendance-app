@@ -7,6 +7,9 @@ import psycopg2
 from psycopg2.extras import DictCursor
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import smtplib
 
 # ロギングの設定
 logging.basicConfig(level=logging.INFO)
@@ -15,6 +18,12 @@ logger = logging.getLogger(__name__)
 # Flask アプリケーションの初期化
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_secret_key")
+
+# SMTP設定
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SMTP_EMAIL = os.environ.get("SMTP_EMAIL")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
 
 # データベース接続設定
 DATABASE_URL = os.environ.get("DATABASE_URL")
@@ -77,14 +86,13 @@ def calendar():
     last_day = datetime.date(year, month + 1, 1) - datetime.timedelta(days=1) if month < 12 else datetime.date(year, 12, 31)
 
     db = get_db()
-    holidays = set()
+    holidays = []
     work_status = []
 
-    # データベースから「休み」と「ステータス」を取得
     try:
         with db.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("SELECT holiday_date FROM holidays;")
-            holidays.update(row['holiday_date'] for row in cur.fetchall())
+            holidays = [row['holiday_date'] for row in cur.fetchall()]
             cur.execute("SELECT status_date, status_type, time FROM work_status;")
             work_status = [dict(row) for row in cur.fetchall()]
     except Exception as e:
@@ -127,7 +135,9 @@ def calendar():
     if week:
         month_days.append(week)
 
-    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days)
+    today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
+
+    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
 
 @app.route("/manage", methods=["GET", "POST"])
 def manage():
@@ -148,22 +158,11 @@ def manage():
                         ON CONFLICT (status_date, status_type) DO UPDATE
                         SET time = EXCLUDED.time;
                     """, (date, status_type, time))
-                elif action == "add_holiday":
-                    cur.execute("""
-                        INSERT INTO holidays (holiday_date)
-                        VALUES (%s)
-                        ON CONFLICT DO NOTHING;
-                    """, (date,))
                 elif action == "delete_status":
                     cur.execute("""
                         DELETE FROM work_status
                         WHERE status_date = %s AND status_type = %s;
                     """, (date, status_type))
-                elif action == "delete_holiday":
-                    cur.execute("""
-                        DELETE FROM holidays
-                        WHERE holiday_date = %s;
-                    """, (date,))
                 db.commit()
                 flash("操作が成功しました")
         except Exception as e:
@@ -171,16 +170,11 @@ def manage():
             logger.error(f"Error in manage operation: {e}")
             flash(f"エラーが発生しました: {e}")
 
-    holidays = []
-    work_status = []
-    try:
-        with db.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("SELECT * FROM holidays;")
-            holidays = cur.fetchall()
-            cur.execute("SELECT * FROM work_status;")
-            work_status = cur.fetchall()
-    except Exception as e:
-        logger.error(f"Error loading manage data: {e}")
+    with db.cursor(cursor_factory=DictCursor) as cur:
+        cur.execute("SELECT * FROM holidays;")
+        holidays = cur.fetchall()
+        cur.execute("SELECT * FROM work_status;")
+        work_status = cur.fetchall()
 
     return render_template("manage.html", holidays=holidays, work_status=work_status)
 
