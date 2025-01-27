@@ -44,44 +44,9 @@ def close_db(error):
         db.close()
         logger.info("Database connection closed")
 
-@app.route("/popup", methods=["GET", "POST"])
-def popup():
-    """ポップアップウィンドウでメール送信"""
-    if request.method == "POST":
-        subject = request.form.get("subject")
-        body = request.form.get("body")
-        recipient = "recipient@example.com"  # 宛先メールアドレス
-
-        # メール送信処理
-        try:
-            msg = MIMEMultipart()
-            msg["From"] = SMTP_EMAIL
-            msg["To"] = recipient
-            msg["Subject"] = subject
-            msg.attach(MIMEText(body, "plain"))
-
-            with smtplib.SMTP("smtp.gmail.com", 587) as server:
-                server.starttls()
-                server.login(SMTP_EMAIL, SMTP_PASSWORD)
-                server.send_message(msg)
-            flash("メールが送信されました", "success")
-            return redirect(url_for("sent"))
-        except Exception as e:
-            logger.error(f"Error sending email: {e}")
-            flash("メール送信中にエラーが発生しました", "error")
-
-    day = request.args.get("day", "")
-    status = request.args.get("status", "")
-    return render_template("popup.html", day=day, status=status)
-
-@app.route("/sent")
-def sent():
-    """送信完了画面"""
-    return render_template("sent.html")
-
 @app.route("/", methods=["GET", "POST"])
 def calendar():
-    """カレンダーを表示"""
+    """カレンダーと伝言板を表示"""
     today = datetime.date.today()
     year, month = today.year, today.month
     first_day = datetime.date(year, month, 1)
@@ -90,16 +55,39 @@ def calendar():
     db = get_db()
     holidays = []
     work_status = []
+    messages = {"昌人より": [], "昌人へ": []}
 
+    # POSTリクエストで伝言を保存
+    if request.method == "POST":
+        direction = request.form.get("direction")
+        message = request.form.get("message")
+        try:
+            with db.cursor() as cur:
+                cur.execute("INSERT INTO messages (direction, message) VALUES (%s, %s);", (direction, message))
+                db.commit()
+                flash("伝言が保存されました")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error saving message: {e}")
+            flash("伝言の保存中にエラーが発生しました")
+        return redirect(url_for("calendar"))
+
+    # データを取得
     try:
         with db.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("SELECT holiday_date FROM holidays;")
             holidays = [row['holiday_date'] for row in cur.fetchall()]
+
             cur.execute("SELECT status_date, status_type, time FROM work_status;")
             work_status = [dict(row) for row in cur.fetchall()]
+
+            cur.execute("SELECT direction, message, created_at FROM messages ORDER BY created_at DESC;")
+            for row in cur.fetchall():
+                messages[row["direction"]].append(row)
     except Exception as e:
         logger.error(f"Error loading data: {e}")
 
+    # カレンダー生成
     month_days = []
     week = []
     current_date = first_day
@@ -139,7 +127,42 @@ def calendar():
 
     today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
 
-    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
+    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status, messages=messages)
+
+@app.route("/popup", methods=["GET", "POST"])
+def popup():
+    """ポップアップウィンドウでメール送信"""
+    if request.method == "POST":
+        subject = request.form.get("subject")
+        body = request.form.get("body")
+        recipient = "masato_o@mac.com"  # 宛先メールアドレス
+
+        # メール送信処理
+        try:
+            msg = MIMEMultipart()
+            msg["From"] = SMTP_EMAIL
+            msg["To"] = recipient
+            msg["Subject"] = subject
+            msg.attach(MIMEText(body, "plain"))
+
+            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                server.starttls()
+                server.login(SMTP_EMAIL, SMTP_PASSWORD)
+                server.send_message(msg)
+            flash("メールが送信されました", "success")
+            return redirect(url_for("sent"))
+        except Exception as e:
+            logger.error(f"Error sending email: {e}")
+            flash("メール送信中にエラーが発生しました", "error")
+
+    day = request.args.get("day", "")
+    status = request.args.get("status", "")
+    return render_template("popup.html", day=day, status=status)
+
+@app.route("/sent")
+def sent():
+    """送信完了画面"""
+    return render_template("sent.html")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
