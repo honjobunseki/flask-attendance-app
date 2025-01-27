@@ -54,7 +54,7 @@ def calendar():
     if request.method == "POST":
         direction = request.form.get("direction")
         new_message = request.form.get("message")
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = datetime.datetime.now()
         try:
             with db.cursor() as cur:
                 cur.execute("""
