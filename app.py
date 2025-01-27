@@ -93,7 +93,7 @@ def calendar():
     messages = {"昌人より": [], "昌人へ": []}
 
     # POSTリクエストで伝言を保存
-    if request.method == "POST":
+    if request.method == "POST" and "direction" in request.form:
         direction = request.form.get("direction")
         message = request.form.get("message")
         try:
@@ -162,7 +162,15 @@ def calendar():
 
     today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
 
-    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status, messages=messages)
+    return render_template(
+        "calendar.html",
+        year=year,
+        month=month,
+        today=today.day,
+        month_days=month_days,
+        today_status=today_status,
+        messages=messages,
+    )
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
