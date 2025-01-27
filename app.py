@@ -19,6 +19,7 @@ if not DATABASE_URL:
     logger.error("DATABASE_URL is not set.")
     raise Exception("DATABASE_URL is not set.")
 
+
 def get_db():
     """データベース接続を取得"""
     if 'db' not in g:
@@ -30,6 +31,7 @@ def get_db():
             raise
     return g.db
 
+
 @app.teardown_appcontext
 def close_db(error):
     """アプリケーション終了時にデータベース接続を閉じる"""
@@ -37,6 +39,7 @@ def close_db(error):
     if db is not None:
         db.close()
         logger.info("Database connection closed")
+
 
 @app.route("/", methods=["GET", "POST"])
 def calendar():
@@ -62,9 +65,9 @@ def calendar():
             work_status = [dict(row) for row in cur.fetchall()]
 
             # 伝言板データを取得
-            cur.execute("SELECT * FROM messages WHERE direction = '昌人より' ORDER BY created_at DESC;")
+            cur.execute("SELECT * FROM messages WHERE direction = 'from_masato' ORDER BY timestamp DESC;")
             messages["from_masato"] = cur.fetchall()
-            cur.execute("SELECT * FROM messages WHERE direction = '昌人へ' ORDER BY created_at DESC;")
+            cur.execute("SELECT * FROM messages WHERE direction = 'to_masato' ORDER BY timestamp DESC;")
             messages["to_masato"] = cur.fetchall()
     except Exception as e:
         logger.error(f"Error loading data: {e}")
@@ -72,12 +75,13 @@ def calendar():
     if request.method == "POST":
         direction = request.form.get("direction")
         new_message = request.form.get("message")
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         try:
             with db.cursor() as cur:
                 cur.execute("""
-                    INSERT INTO messages (direction, message)
-                    VALUES (%s, %s);
-                """, (direction, new_message))
+                    INSERT INTO messages (direction, message, timestamp)
+                    VALUES (%s, %s, %s);
+                """, (direction, new_message, timestamp))
                 db.commit()
                 flash("メッセージが更新されました")
         except Exception as e:
@@ -131,6 +135,7 @@ def calendar():
 
     return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status, messages=messages)
 
+
 @app.route("/manage", methods=["GET", "POST"])
 def manage():
     """管理画面"""
@@ -180,6 +185,7 @@ def manage():
         work_status = cur.fetchall()
 
     return render_template("manage.html", holidays=holidays, work_status=work_status)
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
