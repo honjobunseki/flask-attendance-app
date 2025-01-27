@@ -19,7 +19,6 @@ if not DATABASE_URL:
     logger.error("DATABASE_URL is not set.")
     raise Exception("DATABASE_URL is not set.")
 
-
 def get_db():
     """データベース接続を取得"""
     if 'db' not in g:
@@ -31,7 +30,6 @@ def get_db():
             raise
     return g.db
 
-
 @app.teardown_appcontext
 def close_db(error):
     """アプリケーション終了時にデータベース接続を閉じる"""
@@ -39,7 +37,6 @@ def close_db(error):
     if db is not None:
         db.close()
         logger.info("Database connection closed")
-
 
 @app.route("/", methods=["GET", "POST"])
 def calendar():
@@ -52,25 +49,7 @@ def calendar():
     db = get_db()
     holidays = []
     work_status = []
-    messages = {"from_masato": [], "to_masato": []}
-
-    try:
-        with db.cursor(cursor_factory=DictCursor) as cur:
-            # 休日データを取得
-            cur.execute("SELECT holiday_date FROM holidays;")
-            holidays = [row['holiday_date'] for row in cur.fetchall()]
-
-            # 勤務状態データを取得
-            cur.execute("SELECT status_date, status_type, time FROM work_status;")
-            work_status = [dict(row) for row in cur.fetchall()]
-
-            # 伝言板データを取得
-            cur.execute("SELECT * FROM messages WHERE direction = 'from_masato' ORDER BY timestamp DESC;")
-            messages["from_masato"] = cur.fetchall()
-            cur.execute("SELECT * FROM messages WHERE direction = 'to_masato' ORDER BY timestamp DESC;")
-            messages["to_masato"] = cur.fetchall()
-    except Exception as e:
-        logger.error(f"Error loading data: {e}")
+    messages = {"昌人より": [], "昌人へ": []}
 
     if request.method == "POST":
         direction = request.form.get("direction")
@@ -79,16 +58,35 @@ def calendar():
         try:
             with db.cursor() as cur:
                 cur.execute("""
-                    INSERT INTO messages (direction, message, timestamp)
+                    INSERT INTO messages (direction, message, created_at)
                     VALUES (%s, %s, %s);
                 """, (direction, new_message, timestamp))
                 db.commit()
-                flash("メッセージが更新されました")
+                flash("伝言が更新されました")
         except Exception as e:
             db.rollback()
             logger.error(f"Error updating message: {e}")
-            flash("メッセージ更新中にエラーが発生しました")
+            flash("伝言の更新中にエラーが発生しました")
         return redirect(url_for('calendar'))
+
+    # データを取得
+    try:
+        with db.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("SELECT holiday_date FROM holidays;")
+            holidays = [row['holiday_date'] for row in cur.fetchall()]
+
+            cur.execute("SELECT status_date, status_type, time FROM work_status;")
+            work_status = [dict(row) for row in cur.fetchall()]
+
+            cur.execute("SELECT direction, message, created_at FROM messages ORDER BY created_at DESC;")
+            all_messages = cur.fetchall()
+            for message in all_messages:
+                messages[message['direction']].append({
+                    "message": message["message"],
+                    "created_at": message["created_at"]
+                })
+    except Exception as e:
+        logger.error(f"Error loading data: {e}")
 
     # カレンダー生成
     month_days = []
@@ -102,13 +100,12 @@ def calendar():
 
     current_date = first_day
     while current_date <= last_day:
-        # 土日または「休み」の設定がある場合は赤く塗りつぶす
         is_holiday = current_date.weekday() >= 5 or current_date in holidays
         status = ""
         for ws in work_status:
             if ws['status_date'] == current_date:
                 if ws['status_type'] == "休み":
-                    is_holiday = True  # 「休み」を赤く塗りつぶす条件に追加
+                    is_holiday = True
                 elif ws['status_type'] == "遅刻":
                     status = f"{ws['time']} 出勤予定"
                 elif ws['status_type'] == "早退":
@@ -125,7 +122,6 @@ def calendar():
             week = []
         current_date += datetime.timedelta(days=1)
 
-    # 最後の週の空白セルを埋める
     while len(week) < 7:
         week.append((0, "", False))
     if week:
@@ -134,7 +130,6 @@ def calendar():
     today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
 
     return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status, messages=messages)
-
 
 @app.route("/manage", methods=["GET", "POST"])
 def manage():
@@ -185,7 +180,6 @@ def manage():
         work_status = cur.fetchall()
 
     return render_template("manage.html", holidays=holidays, work_status=work_status)
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
