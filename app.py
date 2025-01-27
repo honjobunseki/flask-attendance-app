@@ -50,8 +50,7 @@ def calendar():
     db = get_db()
     holidays = []
     work_status = []
-    message_from_masato = ""
-    message_to_masato = ""
+    messages = {"from_masato": [], "to_masato": []}
 
     try:
         with db.cursor(cursor_factory=DictCursor) as cur:
@@ -64,23 +63,23 @@ def calendar():
             work_status = [dict(row) for row in cur.fetchall()]
 
             # 伝言板データを取得
-            cur.execute("SELECT message FROM messages WHERE direction = 'from_masato';")
-            message_from_masato = cur.fetchone()['message'] if cur.rowcount > 0 else ""
-            cur.execute("SELECT message FROM messages WHERE direction = 'to_masato';")
-            message_to_masato = cur.fetchone()['message'] if cur.rowcount > 0 else ""
+            cur.execute("SELECT * FROM messages WHERE direction = 'from_masato' ORDER BY timestamp DESC;")
+            messages["from_masato"] = cur.fetchall()
+            cur.execute("SELECT * FROM messages WHERE direction = 'to_masato' ORDER BY timestamp DESC;")
+            messages["to_masato"] = cur.fetchall()
     except Exception as e:
         logger.error(f"Error loading data: {e}")
 
     if request.method == "POST":
         direction = request.form.get("direction")
         new_message = request.form.get("message")
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         try:
             with db.cursor() as cur:
                 cur.execute("""
-                    INSERT INTO messages (direction, message)
-                    VALUES (%s, %s)
-                    ON CONFLICT (direction) DO UPDATE SET message = EXCLUDED.message;
-                """, (direction, new_message))
+                    INSERT INTO messages (direction, message, timestamp)
+                    VALUES (%s, %s, %s);
+                """, (direction, new_message, timestamp))
                 db.commit()
                 flash("メッセージが更新されました")
         except Exception as e:
@@ -100,7 +99,6 @@ def calendar():
 
     current_date = first_day
     while current_date <= last_day:
-        # 土日または「休み」の設定がある場合は赤く塗りつぶす
         is_holiday = current_date.weekday() >= 5 or current_date in holidays or jpholiday.is_holiday(current_date)
         status = ""
         for ws in work_status:
@@ -131,9 +129,7 @@ def calendar():
     today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
 
     return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, 
-                           today_status=today_status, 
-                           message_from_masato=message_from_masato, 
-                           message_to_masato=message_to_masato)
+                           today_status=today_status, messages=messages)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
