@@ -4,9 +4,9 @@ import logging
 from flask import Flask, render_template, request, flash, redirect, url_for, g
 import psycopg2
 from psycopg2.extras import DictCursor
-import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import smtplib
 
 # ロギングの設定
 logging.basicConfig(level=logging.INFO)
@@ -66,7 +66,8 @@ def popup():
             with smtplib.SMTP("smtp.gmail.com", 587) as server:
                 server.starttls()
                 server.login(SMTP_EMAIL, SMTP_PASSWORD)
-                server.send_message(msg)
+                server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
+
             logger.info("メールが送信されました")
             return redirect(url_for("sent"))
         except Exception as e:
