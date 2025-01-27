@@ -49,44 +49,42 @@ def calendar():
     db = get_db()
     holidays = []
     work_status = []
-    messages = {"昌人より": [], "昌人へ": []}
+    messages = {"from_masato": [], "to_masato": []}
+
+    try:
+        with db.cursor(cursor_factory=DictCursor) as cur:
+            # 休日データを取得
+            cur.execute("SELECT holiday_date FROM holidays;")
+            holidays = [row['holiday_date'] for row in cur.fetchall()]
+
+            # 勤務状態データを取得
+            cur.execute("SELECT status_date, status_type, time FROM work_status;")
+            work_status = [dict(row) for row in cur.fetchall()]
+
+            # 伝言板データを取得
+            cur.execute("SELECT * FROM messages WHERE direction = '昌人より' ORDER BY created_at DESC;")
+            messages["from_masato"] = cur.fetchall()
+            cur.execute("SELECT * FROM messages WHERE direction = '昌人へ' ORDER BY created_at DESC;")
+            messages["to_masato"] = cur.fetchall()
+    except Exception as e:
+        logger.error(f"Error loading data: {e}")
 
     if request.method == "POST":
         direction = request.form.get("direction")
         new_message = request.form.get("message")
-        timestamp = datetime.datetime.now()
         try:
             with db.cursor() as cur:
                 cur.execute("""
-                    INSERT INTO messages (direction, message, created_at)
-                    VALUES (%s, %s, %s);
-                """, (direction, new_message, timestamp))
+                    INSERT INTO messages (direction, message)
+                    VALUES (%s, %s);
+                """, (direction, new_message))
                 db.commit()
-                flash("伝言が更新されました")
+                flash("メッセージが更新されました")
         except Exception as e:
             db.rollback()
             logger.error(f"Error updating message: {e}")
-            flash("伝言の更新中にエラーが発生しました")
+            flash("メッセージ更新中にエラーが発生しました")
         return redirect(url_for('calendar'))
-
-    # データを取得
-    try:
-        with db.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("SELECT holiday_date FROM holidays;")
-            holidays = [row['holiday_date'] for row in cur.fetchall()]
-
-            cur.execute("SELECT status_date, status_type, time FROM work_status;")
-            work_status = [dict(row) for row in cur.fetchall()]
-
-            cur.execute("SELECT direction, message, created_at FROM messages ORDER BY created_at DESC;")
-            all_messages = cur.fetchall()
-            for message in all_messages:
-                messages[message['direction']].append({
-                    "message": message["message"],
-                    "created_at": message["created_at"]
-                })
-    except Exception as e:
-        logger.error(f"Error loading data: {e}")
 
     # カレンダー生成
     month_days = []
@@ -100,12 +98,13 @@ def calendar():
 
     current_date = first_day
     while current_date <= last_day:
+        # 土日または「休み」の設定がある場合は赤く塗りつぶす
         is_holiday = current_date.weekday() >= 5 or current_date in holidays
         status = ""
         for ws in work_status:
             if ws['status_date'] == current_date:
                 if ws['status_type'] == "休み":
-                    is_holiday = True
+                    is_holiday = True  # 「休み」を赤く塗りつぶす条件に追加
                 elif ws['status_type'] == "遅刻":
                     status = f"{ws['time']} 出勤予定"
                 elif ws['status_type'] == "早退":
@@ -122,6 +121,7 @@ def calendar():
             week = []
         current_date += datetime.timedelta(days=1)
 
+    # 最後の週の空白セルを埋める
     while len(week) < 7:
         week.append((0, "", False))
     if week:
