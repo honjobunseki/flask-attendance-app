@@ -4,6 +4,9 @@ import logging
 from flask import Flask, render_template, request, flash, redirect, url_for, g
 import psycopg2
 from psycopg2.extras import DictCursor
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
 # ロギングの設定
 logging.basicConfig(level=logging.INFO)
@@ -15,9 +18,12 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_secret_key")
 
 # データベース接続設定
 DATABASE_URL = os.environ.get("DATABASE_URL")
-if not DATABASE_URL:
-    logger.error("DATABASE_URL is not set.")
-    raise Exception("DATABASE_URL is not set.")
+SMTP_EMAIL = os.environ.get("SMTP_EMAIL")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
+
+if not DATABASE_URL or not SMTP_EMAIL or not SMTP_PASSWORD:
+    logger.error("必要な環境変数が設定されていません")
+    raise Exception("環境変数が不足しています")
 
 def get_db():
     """データベース接続を取得"""
@@ -38,9 +44,44 @@ def close_db(error):
         db.close()
         logger.info("Database connection closed")
 
+@app.route("/popup", methods=["GET", "POST"])
+def popup():
+    """ポップアップウィンドウでメール送信"""
+    if request.method == "POST":
+        subject = request.form.get("subject")
+        body = request.form.get("body")
+        recipient = "recipient@example.com"  # 宛先メールアドレス
+
+        # メール送信処理
+        try:
+            msg = MIMEMultipart()
+            msg["From"] = SMTP_EMAIL
+            msg["To"] = recipient
+            msg["Subject"] = subject
+            msg.attach(MIMEText(body, "plain"))
+
+            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                server.starttls()
+                server.login(SMTP_EMAIL, SMTP_PASSWORD)
+                server.send_message(msg)
+            flash("メールが送信されました", "success")
+            return redirect(url_for("sent"))
+        except Exception as e:
+            logger.error(f"Error sending email: {e}")
+            flash("メール送信中にエラーが発生しました", "error")
+
+    day = request.args.get("day", "")
+    status = request.args.get("status", "")
+    return render_template("popup.html", day=day, status=status)
+
+@app.route("/sent")
+def sent():
+    """送信完了画面"""
+    return render_template("sent.html")
+
 @app.route("/", methods=["GET", "POST"])
 def calendar():
-    """カレンダーと伝言板を表示"""
+    """カレンダーを表示"""
     today = datetime.date.today()
     year, month = today.year, today.month
     first_day = datetime.date(year, month, 1)
@@ -49,37 +90,16 @@ def calendar():
     db = get_db()
     holidays = []
     work_status = []
-    messages = []
 
-    # POSTリクエストで伝言を保存
-    if request.method == "POST":
-        direction = request.form.get("direction")
-        message = request.form.get("message")
-        try:
-            with db.cursor() as cur:
-                cur.execute("INSERT INTO messages (direction, message) VALUES (%s, %s);", (direction, message))
-                db.commit()
-                flash("伝言が保存されました")
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Error saving message: {e}")
-            flash("伝言の保存中にエラーが発生しました")
-
-    # データを取得
     try:
         with db.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("SELECT holiday_date FROM holidays;")
             holidays = [row['holiday_date'] for row in cur.fetchall()]
-
             cur.execute("SELECT status_date, status_type, time FROM work_status;")
             work_status = [dict(row) for row in cur.fetchall()]
-
-            cur.execute("SELECT direction, message, created_at FROM messages ORDER BY created_at DESC;")
-            messages = [dict(row) for row in cur.fetchall()]
     except Exception as e:
         logger.error(f"Error loading data: {e}")
 
-    # カレンダー生成
     month_days = []
     week = []
     current_date = first_day
@@ -119,57 +139,7 @@ def calendar():
 
     today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
 
-    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status, messages=messages)
-
-@app.route("/manage", methods=["GET", "POST"])
-def manage():
-    """管理画面"""
-    db = get_db()
-    if request.method == "POST":
-        action = request.form.get("action")
-        date = request.form.get("date")
-        time = request.form.get("time")
-        status_type = request.form.get("status_type")
-
-        try:
-            with db.cursor() as cur:
-                if action == "add_status":
-                    cur.execute("""
-                        INSERT INTO work_status (status_date, status_type, time)
-                        VALUES (%s, %s, %s)
-                        ON CONFLICT (status_date, status_type) DO UPDATE
-                        SET time = EXCLUDED.time;
-                    """, (date, status_type, time))
-                elif action == "delete_status":
-                    cur.execute("""
-                        DELETE FROM work_status
-                        WHERE status_date = %s AND status_type = %s;
-                    """, (date, status_type))
-                elif action == "add_holiday":
-                    cur.execute("""
-                        INSERT INTO holidays (holiday_date)
-                        VALUES (%s)
-                        ON CONFLICT (holiday_date) DO NOTHING;
-                    """, (date,))
-                elif action == "delete_holiday":
-                    cur.execute("""
-                        DELETE FROM holidays
-                        WHERE holiday_date = %s;
-                    """, (date,))
-                db.commit()
-                flash("操作が成功しました")
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Error in manage operation: {e}")
-            flash(f"エラーが発生しました: {e}")
-
-    with db.cursor(cursor_factory=DictCursor) as cur:
-        cur.execute("SELECT * FROM holidays;")
-        holidays = cur.fetchall()
-        cur.execute("SELECT * FROM work_status;")
-        work_status = cur.fetchall()
-
-    return render_template("manage.html", holidays=holidays, work_status=work_status)
+    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
