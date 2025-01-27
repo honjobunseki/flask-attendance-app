@@ -66,7 +66,31 @@
             box-sizing: border-box;
             padding: 5px;
         }
+        .contact-btn {
+            display: inline-block;
+            margin-top: 5px;
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+        }
+        .contact-btn:hover {
+            background-color: #0056b3;
+        }
     </style>
+    <script>
+        function openPopup(day, status) {
+            const popupWidth = 500;
+            const popupHeight = 400;
+            const left = (window.innerWidth - popupWidth) / 2;
+            const top = (window.innerHeight - popupHeight) / 2;
+            const url = `/popup?day=${encodeURIComponent(day)}&status=${encodeURIComponent(status)}`;
+            window.open(url, "_blank", `width=${popupWidth},height=${popupHeight},left=${left},top=${top}`);
+        }
+    </script>
 </head>
 <body>
     <div class="calendar">
@@ -95,6 +119,11 @@
                                     {% if status %}
                                         <div>{{ status }}</div>
                                     {% endif %}
+                                    <button 
+                                        class="contact-btn" 
+                                        onclick="openPopup('{{ year }}年{{ month }}月{{ day }}日', '{{ status }}')">
+                                        連絡する
+                                    </button>
                                 </td>
                             {% elif is_holiday %}
                                 <td class="holiday">
