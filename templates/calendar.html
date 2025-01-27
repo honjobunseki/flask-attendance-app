@@ -45,11 +45,11 @@
             background-color: #eaeaea;
         }
         .message {
-            margin-bottom: 20px;
+            margin-bottom: 40px;
         }
         textarea {
             width: 100%;
-            height: 100px;
+            height: 80px;
             margin-bottom: 10px;
         }
         button {
@@ -59,6 +59,9 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
+        }
+        .message-list {
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -116,18 +119,28 @@
         <div class="message">
             <h3>昌人より</h3>
             <form method="POST">
-                <textarea name="message">{{ message_from_masato }}</textarea>
+                <textarea name="message" placeholder="メッセージを入力してください"></textarea>
                 <input type="hidden" name="direction" value="from_masato">
                 <button type="submit">更新</button>
             </form>
+            <div class="message-list">
+                {% for msg in messages.from_masato %}
+                    <p>{{ msg.timestamp }} - {{ msg.message }}</p>
+                {% endfor %}
+            </div>
         </div>
         <div class="message">
             <h3>昌人へ</h3>
             <form method="POST">
-                <textarea name="message">{{ message_to_masato }}</textarea>
+                <textarea name="message" placeholder="メッセージを入力してください"></textarea>
                 <input type="hidden" name="direction" value="to_masato">
                 <button type="submit">更新</button>
             </form>
+            <div class="message-list">
+                {% for msg in messages.to_masato %}
+                    <p>{{ msg.timestamp }} - {{ msg.message }}</p>
+                {% endfor %}
+            </div>
         </div>
     </div>
 </body>
