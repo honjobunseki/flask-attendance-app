@@ -5,17 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>カレンダー</title>
     <style>
+        body {
+            display: flex;
+            flex-direction: row;
+            font-family: Arial, sans-serif;
+        }
+        .calendar-container {
+            flex: 1;
+            padding: 20px;
+        }
+        .message-board {
+            flex: 1;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-left: 2px solid #ccc;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: fixed; /* 列幅を均等にする */
         }
         th, td {
             border: 1px solid #ccc;
             text-align: center;
             padding: 8px;
-            height: 100px; /* 行の高さを固定 */
-            word-wrap: break-word; /* 長いテキストを折り返す */
+            height: 100px;
         }
         th {
             background-color: #f2f2f2;
@@ -25,94 +38,97 @@
             color: white;
         }
         .today {
-            background-color: white;
+            background-color: yellow;
             font-weight: bold;
         }
         .empty {
-            background-color: #eaeaea; /* グレーに塗りつぶし */
+            background-color: #eaeaea;
         }
-        .status {
-            margin-top: 5px;
-            font-size: 0.9em;
-            color: #555;
+        .message {
+            margin-bottom: 20px;
         }
-        .contact-btn {
-            margin-top: 5px;
-            display: inline-block;
-            padding: 5px 10px;
+        textarea {
+            width: 100%;
+            height: 100px;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 10px;
             background-color: #007bff;
             color: white;
-            text-decoration: none;
-            border-radius: 3px;
+            border: none;
+            border-radius: 5px;
             cursor: pointer;
         }
-        .contact-btn:hover {
-            background-color: #0056b3;
-        }
     </style>
-    <script>
-        function openPopup(day, status) {
-            const popupWidth = 500;
-            const popupHeight = 400;
-            const left = (window.innerWidth - popupWidth) / 2;
-            const top = (window.innerHeight - popupHeight) / 2;
-            const url = `/popup?day=${encodeURIComponent(day)}&status=${encodeURIComponent(status)}`;
-            window.open(url, "_blank", `width=${popupWidth},height=${popupHeight},left=${left},top=${top}`);
-        }
-    </script>
 </head>
 <body>
-    <h1>{{ year }}年{{ month }}月のカレンダー</h1>
-    <table>
-        <thead>
-            <tr>
-                <th>月</th>
-                <th>火</th>
-                <th>水</th>
-                <th>木</th>
-                <th>金</th>
-                <th>土</th>
-                <th>日</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for week in month_days %}
+    <div class="calendar-container">
+        <h1>{{ year }}年{{ month }}月のカレンダー</h1>
+        <table>
+            <thead>
                 <tr>
-                    {% for day, status, is_holiday in week %}
-                        {% if day == 0 %}
-                            <td class="empty"></td> <!-- 空白セルをグレーで表示 -->
-                        {% elif day == today %}
-                            <td class="today">
-                                <div>{{ day }}</div>
-                                {% if status %}
-                                    <div class="status">{{ status }}</div>
-                                {% endif %}
-                                <!-- 本日だけ「連絡する」ボタンを表示 -->
-                                <button 
-                                    class="contact-btn" 
-                                    onclick="openPopup('{{ year }}年{{ month }}月{{ day }}日', '{{ status }}')">
-                                    連絡する
-                                </button>
-                            </td>
-                        {% elif is_holiday %}
-                            <td class="holiday">
-                                <div>{{ day }}</div>
-                                {% if status %}
-                                    <div class="status">{{ status }}</div>
-                                {% endif %}
-                            </td>
-                        {% else %}
-                            <td>
-                                <div>{{ day }}</div>
-                                {% if status %}
-                                    <div class="status">{{ status }}</div>
-                                {% endif %}
-                            </td>
-                        {% endif %}
-                    {% endfor %}
+                    <th>月</th>
+                    <th>火</th>
+                    <th>水</th>
+                    <th>木</th>
+                    <th>金</th>
+                    <th>土</th>
+                    <th>日</th>
                 </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                {% for week in month_days %}
+                    <tr>
+                        {% for day, status, is_holiday in week %}
+                            {% if day == 0 %}
+                                <td class="empty"></td>
+                            {% elif day == today %}
+                                <td class="today">
+                                    <div>{{ day }}</div>
+                                    {% if status %}
+                                        <div class="status">{{ status }}</div>
+                                    {% endif %}
+                                </td>
+                            {% elif is_holiday %}
+                                <td class="holiday">
+                                    <div>{{ day }}</div>
+                                    {% if status %}
+                                        <div class="status">{{ status }}</div>
+                                    {% endif %}
+                                </td>
+                            {% else %}
+                                <td>
+                                    <div>{{ day }}</div>
+                                    {% if status %}
+                                        <div class="status">{{ status }}</div>
+                                    {% endif %}
+                                </td>
+                            {% endif %}
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="message-board">
+        <h2>伝言板</h2>
+        <div class="message">
+            <h3>昌人より</h3>
+            <form method="POST">
+                <textarea name="message">{{ message_from_masato }}</textarea>
+                <input type="hidden" name="direction" value="from_masato">
+                <button type="submit">更新</button>
+            </form>
+        </div>
+        <div class="message">
+            <h3>昌人へ</h3>
+            <form method="POST">
+                <textarea name="message">{{ message_to_masato }}</textarea>
+                <input type="hidden" name="direction" value="to_masato">
+                <button type="submit">更新</button>
+            </form>
+        </div>
+    </div>
 </body>
 </html>
