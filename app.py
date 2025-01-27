@@ -50,7 +50,7 @@ def popup():
     if request.method == "POST":
         subject = request.form.get("subject")
         body = request.form.get("body")
-        recipient = "masato_o@mac.com"  # 宛先メールアドレス
+        recipient = "recipient@example.com"  # 宛先メールアドレス
 
         # メール送信処理
         try:
@@ -81,7 +81,7 @@ def sent():
 
 @app.route("/", methods=["GET", "POST"])
 def calendar():
-    """カレンダーと伝言板を表示"""
+    """カレンダーを表示"""
     today = datetime.date.today()
     year, month = today.year, today.month
     first_day = datetime.date(year, month, 1)
@@ -90,39 +90,16 @@ def calendar():
     db = get_db()
     holidays = []
     work_status = []
-    messages = {"昌人より": [], "昌人へ": []}
 
-    # POSTリクエストで伝言を保存
-    if request.method == "POST" and "direction" in request.form:
-        direction = request.form.get("direction")
-        message = request.form.get("message")
-        try:
-            with db.cursor() as cur:
-                cur.execute("INSERT INTO messages (direction, message) VALUES (%s, %s);", (direction, message))
-                db.commit()
-                flash("伝言が保存されました")
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Error saving message: {e}")
-            flash("伝言の保存中にエラーが発生しました")
-        return redirect(url_for("calendar"))
-
-    # データを取得
     try:
         with db.cursor(cursor_factory=DictCursor) as cur:
             cur.execute("SELECT holiday_date FROM holidays;")
             holidays = [row['holiday_date'] for row in cur.fetchall()]
-
             cur.execute("SELECT status_date, status_type, time FROM work_status;")
             work_status = [dict(row) for row in cur.fetchall()]
-
-            cur.execute("SELECT direction, message, created_at FROM messages ORDER BY created_at DESC;")
-            for row in cur.fetchall():
-                messages[row["direction"]].append(row)
     except Exception as e:
         logger.error(f"Error loading data: {e}")
 
-    # カレンダー生成
     month_days = []
     week = []
     current_date = first_day
@@ -162,15 +139,7 @@ def calendar():
 
     today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
 
-    return render_template(
-        "calendar.html",
-        year=year,
-        month=month,
-        today=today.day,
-        month_days=month_days,
-        today_status=today_status,
-        messages=messages,
-    )
+    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status)
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
