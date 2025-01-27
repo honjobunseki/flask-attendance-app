@@ -44,9 +44,44 @@ def close_db(error):
         db.close()
         logger.info("Database connection closed")
 
+@app.route("/popup", methods=["GET", "POST"])
+def popup():
+    """ポップアップウィンドウでメール送信"""
+    if request.method == "POST":
+        subject = request.form.get("subject")
+        body = request.form.get("body")
+        recipient = "masato_o@mac.com"  # 宛先メールアドレス
+
+        # メール送信処理
+        try:
+            msg = MIMEMultipart()
+            msg["From"] = SMTP_EMAIL
+            msg["To"] = recipient
+            msg["Subject"] = subject
+            msg.attach(MIMEText(body, "plain"))
+
+            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                server.starttls()
+                server.login(SMTP_EMAIL, SMTP_PASSWORD)
+                server.send_message(msg)
+            flash("メールが送信されました", "success")
+            return redirect(url_for("sent"))
+        except Exception as e:
+            logger.error(f"Error sending email: {e}")
+            flash("メール送信中にエラーが発生しました", "error")
+
+    day = request.args.get("day", "")
+    status = request.args.get("status", "")
+    return render_template("popup.html", day=day, status=status)
+
+@app.route("/sent")
+def sent():
+    """送信完了画面"""
+    return render_template("sent.html")
+
 @app.route("/", methods=["GET", "POST"])
 def calendar():
-    """カレンダーと伝言板を表示"""
+    """カレンダーを表示"""
     today = datetime.date.today()
     year, month = today.year, today.month
     first_day = datetime.date(year, month, 1)
@@ -128,41 +163,6 @@ def calendar():
     today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
 
     return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status, messages=messages)
-
-@app.route("/popup", methods=["GET", "POST"])
-def popup():
-    """ポップアップウィンドウでメール送信"""
-    if request.method == "POST":
-        subject = request.form.get("subject")
-        body = request.form.get("body")
-        recipient = "masato_o@mac.com"  # 宛先メールアドレス
-
-        # メール送信処理
-        try:
-            msg = MIMEMultipart()
-            msg["From"] = SMTP_EMAIL
-            msg["To"] = recipient
-            msg["Subject"] = subject
-            msg.attach(MIMEText(body, "plain"))
-
-            with smtplib.SMTP("smtp.gmail.com", 587) as server:
-                server.starttls()
-                server.login(SMTP_EMAIL, SMTP_PASSWORD)
-                server.send_message(msg)
-            flash("メールが送信されました", "success")
-            return redirect(url_for("sent"))
-        except Exception as e:
-            logger.error(f"Error sending email: {e}")
-            flash("メール送信中にエラーが発生しました", "error")
-
-    day = request.args.get("day", "")
-    status = request.args.get("status", "")
-    return render_template("popup.html", day=day, status=status)
-
-@app.route("/sent")
-def sent():
-    """送信完了画面"""
-    return render_template("sent.html")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
