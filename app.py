@@ -67,11 +67,12 @@ def popup():
                 server.starttls()
                 server.login(SMTP_EMAIL, SMTP_PASSWORD)
                 server.send_message(msg)
-            flash("メールが送信されました", "success")
+            logger.info("メールが送信されました")
             return redirect(url_for("sent"))
         except Exception as e:
             logger.error(f"Error sending email: {e}")
             flash("メール送信中にエラーが発生しました", "error")
+            return redirect(url_for("popup"))
 
     day = request.args.get("day", "")
     status = request.args.get("status", "")
@@ -98,7 +99,7 @@ def calendar():
     messages = []
 
     # POSTリクエストで伝言を保存
-    if request.method == "POST":
+    if request.method == "POST" and "message" in request.form:
         direction = request.form.get("direction")
         message = request.form.get("message")
         try:
