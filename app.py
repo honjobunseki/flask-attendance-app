@@ -81,7 +81,7 @@ def sent():
 
 @app.route("/", methods=["GET", "POST"])
 def calendar():
-    """カレンダーを表示"""
+    """カレンダーと伝言板を表示"""
     today = datetime.date.today()
     year, month = today.year, today.month
     first_day = datetime.date(year, month, 1)
