@@ -116,7 +116,12 @@ def calendar():
             cur.execute("SELECT status_date, status_type, time FROM work_status;")
             work_status = [dict(row) for row in cur.fetchall()]
 
-            cur.execute("SELECT direction, message, created_at FROM messages ORDER BY created_at DESC;")
+            cur.execute("""
+                SELECT direction, message, created_at 
+                FROM messages 
+                WHERE created_at >= NOW() - INTERVAL '1 WEEK'
+                ORDER BY created_at DESC;
+            """)
             messages = [dict(row) for row in cur.fetchall()]
     except Exception as e:
         logger.error(f"Error loading data: {e}")
@@ -161,7 +166,24 @@ def calendar():
 
     today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
 
-    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status, messages=messages)
+    # NEW 画像を付与
+    newest_messages = {}
+    for message in messages:
+        if message['direction'] not in newest_messages:
+            newest_messages[message['direction']] = message
+    for message in messages:
+        if message in newest_messages.values():
+            message['new'] = True
+
+    return render_template(
+        "calendar.html", 
+        year=year, 
+        month=month, 
+        today=today.day, 
+        month_days=month_days, 
+        today_status=today_status, 
+        messages=messages
+    )
 
 
 @app.route("/manage", methods=["GET", "POST"])
