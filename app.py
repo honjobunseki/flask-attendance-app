@@ -46,27 +46,6 @@ def close_db(error):
         db.close()
         logger.info("Database connection closed")
 
-def send_notification_email():
-    """「昌人へ」の伝言追加時に通知メールを送信"""
-    subject = "新しい伝言が追加されました"
-    body = ""
-    recipient = "masato_o@mac.com"
-
-    try:
-        msg = MIMEMultipart()
-        msg["From"] = SMTP_EMAIL
-        msg["To"] = recipient
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body, "plain"))
-
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_EMAIL, SMTP_PASSWORD)
-            server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
-        logger.info("通知メールが送信されました")
-    except Exception as e:
-        logger.error(f"Error sending notification email: {e}")
-
 @app.route("/", methods=["GET", "POST"])
 def calendar():
     """カレンダーと伝言板を表示"""
@@ -84,20 +63,14 @@ def calendar():
     if request.method == "POST" and "message" in request.form:
         direction = request.form.get("direction")
         message = request.form.get("message")
-        created_at = datetime.datetime.now()
         try:
             with db.cursor() as cur:
                 cur.execute(
                     "INSERT INTO messages (direction, message, created_at) VALUES (%s, %s, %s);",
-                    (direction, message, created_at)
+                    (direction, message, datetime.datetime.now())
                 )
                 db.commit()
                 flash("伝言が保存されました")
-
-            # 「昌人へ」の場合、メールを送信
-            if direction == "昌人へ":
-                send_notification_email()
-
         except Exception as e:
             db.rollback()
             logger.error(f"Error saving message: {e}")
@@ -123,8 +96,6 @@ def calendar():
 
         for message in messages:
             message["is_new"] = message in latest_messages.values()
-            # created_at を年月日のみの形式で再フォーマット
-            message["created_at"] = message["created_at"].strftime('%Y/%m/%d')
     except Exception as e:
         logger.error(f"Error loading data: {e}")
 
