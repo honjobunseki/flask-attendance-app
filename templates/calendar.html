@@ -169,7 +169,7 @@
                         <img src="/static/image/image_new.gif" alt="NEW" width="20">
                     {% endif %}
                     <strong>{{ message.direction }}:</strong> {{ message.message }}
-                    <em>({{ message.created_at.strftime('%Y/%m/%d %H:%M') }})</em>
+                    <em>({{ message.created_at.strftime('%Y/%m/%d') }})</em>
                 </li>
             {% endfor %}
         </ul>
