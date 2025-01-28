@@ -80,6 +80,10 @@
         .contact-btn:hover {
             background-color: #0056b3;
         }
+        .new-message img {
+            vertical-align: middle;
+            margin-right: 5px;
+        }
     </style>
     <script>
         function openPopup(day, status) {
@@ -148,8 +152,8 @@
         <form method="POST">
             <label for="direction">方向:</label>
             <select id="direction" name="direction" required>
+                <option value="昌人へ" selected>昌人へ</option>
                 <option value="昌人より">昌人より</option>
-                <option value="昌人へ">昌人へ</option>
             </select>
             <br><br>
             <label for="message">メッセージ:</label>
@@ -160,7 +164,13 @@
         <h3>伝言一覧</h3>
         <ul>
             {% for message in messages %}
-                <li><strong>{{ message.direction }}:</strong> {{ message.message }} <em>({{ message.created_at.strftime('%Y/%m/%d %H:%M') }})</em></li>
+                <li class="{% if message.is_new %}new-message{% endif %}">
+                    {% if message.is_new %}
+                        <img src="/static/image/image_new.gif" alt="NEW" width="20">
+                    {% endif %}
+                    <strong>{{ message.direction }}:</strong> {{ message.message }}
+                    <em>({{ message.created_at.strftime('%Y/%m/%d %H:%M') }})</em>
+                </li>
             {% endfor %}
         </ul>
     </div>
