@@ -47,43 +47,36 @@ def close_db(error):
         logger.info("Database connection closed")
 
 
-@app.route("/popup", methods=["GET", "POST"])
+@app.route("/popup")
 def popup():
-    """ポップアップウィンドウでメール送信"""
-    if request.method == "POST":
-        subject = request.form.get("subject")
-        body = request.form.get("body")
-        recipient = "masato_o@mac.com"  # 宛先メールアドレス
-
-        # メール送信処理
-        try:
-            msg = MIMEMultipart()
-            msg["From"] = SMTP_EMAIL
-            msg["To"] = recipient
-            msg["Subject"] = subject
-            msg.attach(MIMEText(body, "plain"))
-
-            with smtplib.SMTP("smtp.gmail.com", 587) as server:
-                server.starttls()
-                server.login(SMTP_EMAIL, SMTP_PASSWORD)
-                server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
-
-            logger.info("メールが送信されました")
-            return redirect(url_for("sent"))
-        except Exception as e:
-            logger.error(f"Error sending email: {e}")
-            flash("メール送信中にエラーが発生しました", "error")
-            return redirect(url_for("popup"))
-
-    day = request.args.get("day", "")
-    status = request.args.get("status", "")
+    """ポップアップウィンドウを表示"""
+    day = request.args.get("day", "不明な日付")
+    status = request.args.get("status", "特になし")
     return render_template("popup.html", day=day, status=status)
 
+@app.route("/send_email", methods=["POST"])
+def send_email():
+    """メールを送信して sent.html に移行"""
+    subject = request.form.get("subject", "No Subject")
+    body = request.form.get("body", "No Content")
+    recipient = "masato_o@mac.com"
 
-@app.route("/sent")
-def sent():
-    """送信完了画面"""
-    return render_template("sent.html")
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = SMTP_EMAIL
+        msg["To"] = recipient
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain"))
+
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
+
+        return render_template("sent.html", message="送信が完了しました")
+    except Exception as e:
+        logger.error(f"Error sending email: {e}")
+        return render_template("sent.html", message=f"送信中にエラーが発生しました: {e}")
 
 
 @app.route("/", methods=["GET", "POST"])
