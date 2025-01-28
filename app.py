@@ -71,6 +71,30 @@ def calendar():
                 )
                 db.commit()
                 flash("伝言が保存されました")
+
+                # --- ここから追加 ---
+                # 「昌人へ」の伝言を追加した場合のみ、メールを送信する
+                if direction == "昌人へ":
+                    recipient = "masato_o@mac.com"
+                    subject = "新しい伝言が追加されました"
+                    body = "なし"
+
+                    try:
+                        msg = MIMEMultipart()
+                        msg["From"] = SMTP_EMAIL
+                        msg["To"] = recipient
+                        msg["Subject"] = subject
+                        msg.attach(MIMEText(body, "plain"))
+
+                        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+                            server.starttls()
+                            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+                            server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
+                        logger.info("Email notification sent for '昌人へ' message.")
+                    except Exception as e:
+                        logger.error(f"Error sending notification email: {e}")
+                # --- ここまで追加 ---
+
         except Exception as e:
             db.rollback()
             logger.error(f"Error saving message: {e}")
