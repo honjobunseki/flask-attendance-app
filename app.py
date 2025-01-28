@@ -16,16 +16,15 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_secret_key")
 
-# SMTPおよびデータベース設定
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 587
+# データベース接続設定
+DATABASE_URL = os.environ.get("DATABASE_URL")
 SMTP_EMAIL = os.environ.get("SMTP_EMAIL")
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
-DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if not DATABASE_URL or not SMTP_EMAIL or not SMTP_PASSWORD:
     logger.error("必要な環境変数が設定されていません")
     raise Exception("環境変数が不足しています")
+
 
 def get_db():
     """データベース接続を取得"""
@@ -38,6 +37,7 @@ def get_db():
             raise
     return g.db
 
+
 @app.teardown_appcontext
 def close_db(error):
     """アプリケーション終了時にデータベース接続を閉じる"""
@@ -45,6 +45,40 @@ def close_db(error):
     if db is not None:
         db.close()
         logger.info("Database connection closed")
+
+
+@app.route("/popup")
+def popup():
+    """ポップアップウィンドウを表示"""
+    day = request.args.get("day", "不明な日付")
+    status = request.args.get("status", "特になし")
+    return render_template("popup.html", day=day, status=status)
+
+
+@app.route("/send_email", methods=["POST"])
+def send_email():
+    """メールを送信して sent.html に移行"""
+    subject = request.form.get("subject", "No Subject")
+    body = request.form.get("body", "No Content")
+    recipient = "masato_o@mac.com"
+
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = SMTP_EMAIL
+        msg["To"] = recipient
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain"))
+
+        with smtplib.SMTP("smtp.gmail.com", 587) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
+
+        return render_template("sent.html", message="送信が完了しました")
+    except Exception as e:
+        logger.error(f"Error sending email: {e}")
+        return render_template("sent.html", message=f"送信中にエラーが発生しました: {e}")
+
 
 @app.route("/", methods=["GET", "POST"])
 def calendar():
@@ -65,10 +99,7 @@ def calendar():
         message = request.form.get("message")
         try:
             with db.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO messages (direction, message, created_at) VALUES (%s, %s, %s);",
-                    (direction, message, datetime.datetime.now())
-                )
+                cur.execute("INSERT INTO messages (direction, message) VALUES (%s, %s);", (direction, message))
                 db.commit()
                 flash("伝言が保存されました")
         except Exception as e:
@@ -87,15 +118,6 @@ def calendar():
 
             cur.execute("SELECT direction, message, created_at FROM messages ORDER BY created_at DESC;")
             messages = [dict(row) for row in cur.fetchall()]
-
-        # 最新の「昌人より」と「昌人へ」の伝言にフラグを付加
-        latest_messages = {"昌人より": None, "昌人へ": None}
-        for message in messages:
-            if message["direction"] in latest_messages and not latest_messages[message["direction"]]:
-                latest_messages[message["direction"]] = message
-
-        for message in messages:
-            message["is_new"] = message in latest_messages.values()
     except Exception as e:
         logger.error(f"Error loading data: {e}")
 
@@ -139,47 +161,59 @@ def calendar():
 
     today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
 
-    return render_template(
-        "calendar.html",
-        year=year,
-        month=month,
-        today=today.day,
-        month_days=month_days,
-        today_status=today_status,
-        messages=messages,
-        gif_path="/static/image/image_new.gif"
-    )
+    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status, messages=messages)
 
-@app.route("/popup")
-def popup():
-    """ポップアップウィンドウを表示"""
-    day = request.args.get("day", "不明な日付")
-    status = request.args.get("status", "特になし")
-    return render_template("popup.html", day=day, status=status)
 
-@app.route("/send_email", methods=["POST"])
-def send_email():
-    """メールを送信して sent.html に移行"""
-    subject = request.form.get("subject", "No Subject")
-    body = request.form.get("body", "No Content")
-    recipient = "masato_o@mac.com"
+@app.route("/manage", methods=["GET", "POST"])
+def manage():
+    """管理画面"""
+    db = get_db()
+    if request.method == "POST":
+        action = request.form.get("action")
+        date = request.form.get("date")
+        time = request.form.get("time")
+        status_type = request.form.get("status_type")
 
-    try:
-        msg = MIMEMultipart()
-        msg["From"] = SMTP_EMAIL
-        msg["To"] = recipient
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body, "plain"))
+        try:
+            with db.cursor() as cur:
+                if action == "add_status":
+                    cur.execute("""
+                        INSERT INTO work_status (status_date, status_type, time)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (status_date, status_type) DO UPDATE
+                        SET time = EXCLUDED.time;
+                    """, (date, status_type, time))
+                elif action == "delete_status":
+                    cur.execute("""
+                        DELETE FROM work_status
+                        WHERE status_date = %s AND status_type = %s;
+                    """, (date, status_type))
+                elif action == "add_holiday":
+                    cur.execute("""
+                        INSERT INTO holidays (holiday_date)
+                        VALUES (%s)
+                        ON CONFLICT (holiday_date) DO NOTHING;
+                    """, (date,))
+                elif action == "delete_holiday":
+                    cur.execute("""
+                        DELETE FROM holidays
+                        WHERE holiday_date = %s;
+                    """, (date,))
+                db.commit()
+                flash("操作が成功しました")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error in manage operation: {e}")
+            flash(f"エラーが発生しました: {e}")
 
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_EMAIL, SMTP_PASSWORD)
-            server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
+    with db.cursor(cursor_factory=DictCursor) as cur:
+        cur.execute("SELECT * FROM holidays;")
+        holidays = cur.fetchall()
+        cur.execute("SELECT * FROM work_status;")
+        work_status = cur.fetchall()
 
-        return render_template("sent.html", message="送信が完了しました")
-    except Exception as e:
-        logger.error(f"Error sending email: {e}")
-        return render_template("sent.html", message=f"送信中にエラーが発生しました: {e}")
+    return render_template("manage.html", holidays=holidays, work_status=work_status)
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
