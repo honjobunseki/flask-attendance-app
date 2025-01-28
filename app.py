@@ -62,12 +62,6 @@ def delete_old_messages():
         logger.error(f"古い伝言の削除中にエラーが発生しました: {e}")
 
 
-@app.before_first_request
-def initialize_app():
-    """アプリ起動時に古い伝言を削除"""
-    delete_old_messages()
-
-
 @app.route("/popup")
 def popup():
     """ポップアップウィンドウを表示"""
@@ -207,5 +201,7 @@ def calendar():
 
 
 if __name__ == "__main__":
+    # アプリ起動時に古い伝言を削除
+    delete_old_messages()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
