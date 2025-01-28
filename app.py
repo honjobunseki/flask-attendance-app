@@ -171,7 +171,7 @@ def calendar():
         month_days=month_days,
         today_status=today_status,
         messages=messages,
-        gif_path="/static/image/image_new.gif"
+        gif_path="/static/image/imagenew.gif"
     )
 
 @app.route("/popup")
