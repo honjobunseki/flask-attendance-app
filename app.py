@@ -49,6 +49,64 @@ def close_db(error):
         logger.info("Database connection closed")
 
 
+@app.route("/manage", methods=["GET", "POST"])
+def manage():
+    """管理画面"""
+    db = get_db()
+    if request.method == "POST":
+        action = request.form.get("action")
+        date = request.form.get("date")
+        time = request.form.get("time")
+        status_type = request.form.get("status_type")
+
+        try:
+            with db.cursor() as cur:
+                if action == "add_status":
+                    cur.execute("""
+                        INSERT INTO work_status (status_date, status_type, time)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (status_date, status_type) DO UPDATE
+                        SET time = EXCLUDED.time;
+                    """, (date, status_type, time))
+                elif action == "delete_status":
+                    cur.execute("""
+                        DELETE FROM work_status
+                        WHERE status_date = %s AND status_type = %s;
+                    """, (date, status_type))
+                elif action == "add_holiday":
+                    cur.execute("""
+                        INSERT INTO holidays (holiday_date)
+                        VALUES (%s)
+                        ON CONFLICT (holiday_date) DO NOTHING;
+                    """, (date,))
+                elif action == "delete_holiday":
+                    cur.execute("""
+                        DELETE FROM holidays
+                        WHERE holiday_date = %s;
+                    """, (date,))
+                db.commit()
+                flash("操作が成功しました", "success")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Error in manage operation: {e}")
+            flash(f"エラーが発生しました: {e}", "error")
+
+    # データの取得
+    holidays = []
+    work_status = []
+    try:
+        with db.cursor(cursor_factory=DictCursor) as cur:
+            cur.execute("SELECT * FROM holidays;")
+            holidays = cur.fetchall()
+            cur.execute("SELECT * FROM work_status;")
+            work_status = cur.fetchall()
+    except Exception as e:
+        logger.error(f"Error loading data for manage: {e}")
+        flash("データの取得中にエラーが発生しました", "error")
+
+    return render_template("manage.html", holidays=holidays, work_status=work_status)
+
+
 @app.route("/popup")
 def popup():
     """ポップアップウィンドウを表示"""
@@ -62,7 +120,7 @@ def send_email():
     """メールを送信して sent.html に移行"""
     subject = request.form.get("subject", "No Subject")
     body = request.form.get("body", "No Content")
-    recipient = "masato_o@mac.com"  # 固定送信先
+    recipient = "masato_o@mac.com"
 
     try:
         msg = MIMEMultipart()
@@ -71,7 +129,6 @@ def send_email():
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "plain"))
 
-        # Gmail SMTPサーバーを使用してメールを送信
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
             server.login(SMTP_EMAIL, SMTP_PASSWORD)
