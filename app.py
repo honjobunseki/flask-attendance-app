@@ -49,62 +49,23 @@ def close_db(error):
         logger.info("Database connection closed")
 
 
-@app.route("/manage", methods=["GET", "POST"])
-def manage():
-    """管理画面"""
+def delete_old_messages():
+    """1週間以上経過した伝言を削除"""
     db = get_db()
-    if request.method == "POST":
-        action = request.form.get("action")
-        date = request.form.get("date")
-        time = request.form.get("time")
-        status_type = request.form.get("status_type")
-
-        try:
-            with db.cursor() as cur:
-                if action == "add_status":
-                    cur.execute("""
-                        INSERT INTO work_status (status_date, status_type, time)
-                        VALUES (%s, %s, %s)
-                        ON CONFLICT (status_date, status_type) DO UPDATE
-                        SET time = EXCLUDED.time;
-                    """, (date, status_type, time))
-                elif action == "delete_status":
-                    cur.execute("""
-                        DELETE FROM work_status
-                        WHERE status_date = %s AND status_type = %s;
-                    """, (date, status_type))
-                elif action == "add_holiday":
-                    cur.execute("""
-                        INSERT INTO holidays (holiday_date)
-                        VALUES (%s)
-                        ON CONFLICT (holiday_date) DO NOTHING;
-                    """, (date,))
-                elif action == "delete_holiday":
-                    cur.execute("""
-                        DELETE FROM holidays
-                        WHERE holiday_date = %s;
-                    """, (date,))
-                db.commit()
-                flash("操作が成功しました", "success")
-        except Exception as e:
-            db.rollback()
-            logger.error(f"Error in manage operation: {e}")
-            flash(f"エラーが発生しました: {e}", "error")
-
-    # データの取得
-    holidays = []
-    work_status = []
     try:
-        with db.cursor(cursor_factory=DictCursor) as cur:
-            cur.execute("SELECT * FROM holidays;")
-            holidays = cur.fetchall()
-            cur.execute("SELECT * FROM work_status;")
-            work_status = cur.fetchall()
+        with db.cursor() as cur:
+            cur.execute("DELETE FROM messages WHERE created_at < NOW() - INTERVAL '7 days';")
+            db.commit()
+            logger.info("1週間以上経過した伝言を削除しました")
     except Exception as e:
-        logger.error(f"Error loading data for manage: {e}")
-        flash("データの取得中にエラーが発生しました", "error")
+        db.rollback()
+        logger.error(f"古い伝言の削除中にエラーが発生しました: {e}")
 
-    return render_template("manage.html", holidays=holidays, work_status=work_status)
+
+@app.before_first_request
+def initialize_app():
+    """アプリ起動時に古い伝言を削除"""
+    delete_old_messages()
 
 
 @app.route("/popup")
@@ -177,10 +138,21 @@ def calendar():
             cur.execute("SELECT status_date, status_type, time FROM work_status;")
             work_status = [dict(row) for row in cur.fetchall()]
 
-            cur.execute("SELECT direction, message, created_at FROM messages ORDER BY created_at DESC;")
+            cur.execute("""
+                SELECT direction, message, created_at
+                FROM messages
+                ORDER BY created_at DESC;
+            """)
             messages = [dict(row) for row in cur.fetchall()]
     except Exception as e:
         logger.error(f"Error loading data: {e}")
+
+    # 最新の伝言に「NEW」を追加
+    for direction in ["昌人より", "昌人へ"]:
+        for message in messages:
+            if message["direction"] == direction:
+                message["is_new"] = True
+                break
 
     # カレンダー生成
     month_days = []
@@ -222,7 +194,16 @@ def calendar():
 
     today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
 
-    return render_template("calendar.html", year=year, month=month, today=today.day, month_days=month_days, today_status=today_status, messages=messages)
+    return render_template(
+        "calendar.html",
+        year=year,
+        month=month,
+        today=today.day,
+        month_days=month_days,
+        today_status=today_status,
+        messages=messages,
+        gif_path="/image/image_new.gif"
+    )
 
 
 if __name__ == "__main__":
