@@ -117,7 +117,11 @@
                         {% for day, status, is_holiday in week %}
                             {% if day == 0 %}
                                 <td class="empty"></td>
-                            {% elif day == today %}
+                            {% elif is_holiday %}
+                                <td class="holiday">
+                                    <div>{{ day }}</div>
+                                </td>
+                               {% elif day == today %}
                                 <td class="today">
                                     <div>{{ day }}</div>
                                     {% if status %}
@@ -128,10 +132,6 @@
                                         onclick="openPopup('{{ year }}年{{ month }}月{{ day }}日', '{{ status }}')">
                                         連絡する
                                     </button>
-                                </td>
-                            {% elif is_holiday %}
-                                <td class="holiday">
-                                    <div>{{ day }}</div>
                                 </td>
                             {% else %}
                                 <td>
