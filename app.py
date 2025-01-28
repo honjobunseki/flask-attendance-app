@@ -20,6 +20,8 @@ app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_secret_key")
 DATABASE_URL = os.environ.get("DATABASE_URL")
 SMTP_EMAIL = os.environ.get("SMTP_EMAIL")
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
 
 if not DATABASE_URL or not SMTP_EMAIL or not SMTP_PASSWORD:
     logger.error("必要な環境変数が設定されていません")
@@ -54,12 +56,13 @@ def popup():
     status = request.args.get("status", "特になし")
     return render_template("popup.html", day=day, status=status)
 
+
 @app.route("/send_email", methods=["POST"])
 def send_email():
     """メールを送信して sent.html に移行"""
     subject = request.form.get("subject", "No Subject")
     body = request.form.get("body", "No Content")
-    recipient = "masato_o@mac.com"
+    recipient = "masato_o@mac.com"  # 固定送信先
 
     try:
         msg = MIMEMultipart()
@@ -68,11 +71,13 @@ def send_email():
         msg["Subject"] = subject
         msg.attach(MIMEText(body, "plain"))
 
+        # Gmail SMTPサーバーを使用してメールを送信
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
             server.login(SMTP_EMAIL, SMTP_PASSWORD)
             server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
 
+        logger.info("メールが送信されました")
         return render_template("sent.html", message="送信が完了しました")
     except Exception as e:
         logger.error(f"Error sending email: {e}")
