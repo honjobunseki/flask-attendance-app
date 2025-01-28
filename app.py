@@ -71,10 +71,6 @@ def calendar():
                 )
                 db.commit()
                 flash("伝言が保存されました")
-                
-                # 昌人へ の伝言の場合のみ通知メールを送信
-                if direction == "昌人へ":
-                    send_email_notification("伝言が追加されました", "なし")
         except Exception as e:
             db.rollback()
             logger.error(f"Error saving message: {e}")
@@ -100,8 +96,6 @@ def calendar():
 
         for message in messages:
             message["is_new"] = message in latest_messages.values()
-            # 日付のみを表示するためにフォーマット変更
-            message["formatted_date"] = message["created_at"].strftime("%Y/%m/%d")
     except Exception as e:
         logger.error(f"Error loading data: {e}")
 
@@ -163,6 +157,30 @@ def popup():
     status = request.args.get("status", "特になし")
     return render_template("popup.html", day=day, status=status)
 
+@app.route("/send_email", methods=["POST"])
+def send_email():
+    """メールを送信して sent.html に移行"""
+    subject = request.form.get("subject", "No Subject")
+    body = request.form.get("body", "No Content")
+    recipient = "masato_o@mac.com"
+
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = SMTP_EMAIL
+        msg["To"] = recipient
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain"))
+
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
+
+        return render_template("sent.html", message="送信が完了しました")
+    except Exception as e:
+        logger.error(f"Error sending email: {e}")
+        return render_template("sent.html", message=f"送信中にエラーが発生しました: {e}")
+
 @app.route("/manage", methods=["GET", "POST"])
 def manage():
     """管理画面"""
@@ -212,24 +230,6 @@ def manage():
         work_status = cur.fetchall()
 
     return render_template("manage.html", holidays=holidays, work_status=work_status)
-
-def send_email_notification(subject, body):
-    """メール通知を送信"""
-    recipient = "masato_o@mac.com"
-    try:
-        msg = MIMEMultipart()
-        msg["From"] = SMTP_EMAIL
-        msg["To"] = recipient
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body, "plain"))
-
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_EMAIL, SMTP_PASSWORD)
-            server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
-        logger.info("メール通知が送信されました")
-    except Exception as e:
-        logger.error(f"メール送信中にエラーが発生しました: {e}")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
