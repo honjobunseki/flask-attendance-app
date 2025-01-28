@@ -16,17 +16,16 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "default_secret_key")
 
-# データベース接続設定
-DATABASE_URL = os.environ.get("DATABASE_URL")
-SMTP_EMAIL = os.environ.get("SMTP_EMAIL")
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
+# SMTPおよびデータベース設定
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
+SMTP_EMAIL = os.environ.get("SMTP_EMAIL")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
 if not DATABASE_URL or not SMTP_EMAIL or not SMTP_PASSWORD:
     logger.error("必要な環境変数が設定されていません")
     raise Exception("環境変数が不足しています")
-
 
 def get_db():
     """データベース接続を取得"""
@@ -39,7 +38,6 @@ def get_db():
             raise
     return g.db
 
-
 @app.teardown_appcontext
 def close_db(error):
     """アプリケーション終了時にデータベース接続を閉じる"""
@@ -47,20 +45,6 @@ def close_db(error):
     if db is not None:
         db.close()
         logger.info("Database connection closed")
-
-
-def delete_old_messages():
-    """1週間以上経過した伝言を削除"""
-    db = get_db()
-    try:
-        with db.cursor() as cur:
-            cur.execute("DELETE FROM messages WHERE created_at < NOW() - INTERVAL '7 days';")
-            db.commit()
-            logger.info("1週間以上経過した伝言を削除しました")
-    except Exception as e:
-        db.rollback()
-        logger.error(f"古い伝言の削除中にエラーが発生しました: {e}")
-
 
 @app.route("/", methods=["GET", "POST"])
 def calendar():
@@ -81,7 +65,10 @@ def calendar():
         message = request.form.get("message")
         try:
             with db.cursor() as cur:
-                cur.execute("INSERT INTO messages (direction, message) VALUES (%s, %s);", (direction, message))
+                cur.execute(
+                    "INSERT INTO messages (direction, message, created_at) VALUES (%s, %s, %s);",
+                    (direction, message, datetime.datetime.now())
+                )
                 db.commit()
                 flash("伝言が保存されました")
         except Exception as e:
@@ -98,25 +85,19 @@ def calendar():
             cur.execute("SELECT status_date, status_type, time FROM work_status;")
             work_status = [dict(row) for row in cur.fetchall()]
 
-            cur.execute("""
-                SELECT direction, message, created_at
-                FROM messages
-                ORDER BY created_at DESC;
-            """)
+            cur.execute("SELECT direction, message, created_at FROM messages ORDER BY created_at DESC;")
             messages = [dict(row) for row in cur.fetchall()]
+
+        # 最新の「昌人より」と「昌人へ」の伝言にフラグを付加
+        latest_messages = {"昌人より": None, "昌人へ": None}
+        for message in messages:
+            if message["direction"] in latest_messages and not latest_messages[message["direction"]]:
+                latest_messages[message["direction"]] = message
+
+        for message in messages:
+            message["is_new"] = message in latest_messages.values()
     except Exception as e:
         logger.error(f"Error loading data: {e}")
-
-    # 最新の伝言に「NEW」を追加
-    latest_messages = {"昌人より": None, "昌人へ": None}
-    for message in messages:
-        if message["direction"] in latest_messages and not latest_messages[message["direction"]]:
-            latest_messages[message["direction"]] = message
-
-    for message in messages:
-        message["is_new"] = False
-        if message in latest_messages.values():
-            message["is_new"] = True
 
     # カレンダー生成
     month_days = []
@@ -169,9 +150,37 @@ def calendar():
         gif_path="/static/image/image_new.gif"
     )
 
+@app.route("/popup")
+def popup():
+    """ポップアップウィンドウを表示"""
+    day = request.args.get("day", "不明な日付")
+    status = request.args.get("status", "特になし")
+    return render_template("popup.html", day=day, status=status)
+
+@app.route("/send_email", methods=["POST"])
+def send_email():
+    """メールを送信して sent.html に移行"""
+    subject = request.form.get("subject", "No Subject")
+    body = request.form.get("body", "No Content")
+    recipient = "masato_o@mac.com"
+
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = SMTP_EMAIL
+        msg["To"] = recipient
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain"))
+
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_EMAIL, SMTP_PASSWORD)
+            server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
+
+        return render_template("sent.html", message="送信が完了しました")
+    except Exception as e:
+        logger.error(f"Error sending email: {e}")
+        return render_template("sent.html", message=f"送信中にエラーが発生しました: {e}")
 
 if __name__ == "__main__":
-    # アプリ起動時に古い伝言を削除
-    delete_old_messages()
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
