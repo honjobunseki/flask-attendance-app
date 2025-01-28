@@ -62,40 +62,6 @@ def delete_old_messages():
         logger.error(f"古い伝言の削除中にエラーが発生しました: {e}")
 
 
-@app.route("/popup")
-def popup():
-    """ポップアップウィンドウを表示"""
-    day = request.args.get("day", "不明な日付")
-    status = request.args.get("status", "特になし")
-    return render_template("popup.html", day=day, status=status)
-
-
-@app.route("/send_email", methods=["POST"])
-def send_email():
-    """メールを送信して sent.html に移行"""
-    subject = request.form.get("subject", "No Subject")
-    body = request.form.get("body", "No Content")
-    recipient = "masato_o@mac.com"
-
-    try:
-        msg = MIMEMultipart()
-        msg["From"] = SMTP_EMAIL
-        msg["To"] = recipient
-        msg["Subject"] = subject
-        msg.attach(MIMEText(body, "plain"))
-
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_EMAIL, SMTP_PASSWORD)
-            server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
-
-        logger.info("メールが送信されました")
-        return render_template("sent.html", message="送信が完了しました")
-    except Exception as e:
-        logger.error(f"Error sending email: {e}")
-        return render_template("sent.html", message=f"送信中にエラーが発生しました: {e}")
-
-
 @app.route("/", methods=["GET", "POST"])
 def calendar():
     """カレンダーと伝言板を表示"""
@@ -142,11 +108,15 @@ def calendar():
         logger.error(f"Error loading data: {e}")
 
     # 最新の伝言に「NEW」を追加
-    for direction in ["昌人より", "昌人へ"]:
-        for message in messages:
-            if message["direction"] == direction:
-                message["is_new"] = True
-                break
+    latest_messages = {"昌人より": None, "昌人へ": None}
+    for message in messages:
+        if message["direction"] in latest_messages and not latest_messages[message["direction"]]:
+            latest_messages[message["direction"]] = message
+
+    for message in messages:
+        message["is_new"] = False
+        if message in latest_messages.values():
+            message["is_new"] = True
 
     # カレンダー生成
     month_days = []
@@ -196,7 +166,7 @@ def calendar():
         month_days=month_days,
         today_status=today_status,
         messages=messages,
-        gif_path="/image/image_new.gif"
+        gif_path="/static/image/image_new.gif"
     )
 
 
