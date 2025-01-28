@@ -77,7 +77,7 @@ def calendar():
                 if direction == "昌人へ":
                     recipient = "masato_o@mac.com"
                     subject = "新しい伝言が追加されました"
-                    body = "なし"
+                    body = ""
 
                     try:
                         msg = MIMEMultipart()
