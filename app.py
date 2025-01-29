@@ -8,6 +8,9 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import smtplib
 
+# --- ここを追加 ---
+import jpholiday
+
 # ロギングの設定
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -55,7 +58,7 @@ def calendar():
     last_day = (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)) if month < 12 else datetime.date(year, 12, 31)
 
     db = get_db()
-    holidays = []
+    holidays = []   # 会社独自の休日（DB管理）
     work_status = []
     messages = []
 
@@ -72,7 +75,6 @@ def calendar():
                 db.commit()
                 flash("伝言が保存されました")
 
-                # --- ここから追加 ---
                 # 「昌人へ」の伝言を追加した場合のみ、メールを送信する
                 if direction == "昌人へ":
                     recipient = "masato_o@mac.com"
@@ -93,7 +95,6 @@ def calendar():
                         logger.info("Email notification sent for '昌人へ' message.")
                     except Exception as e:
                         logger.error(f"Error sending notification email: {e}")
-                # --- ここまで追加 ---
 
         except Exception as e:
             db.rollback()
@@ -134,7 +135,11 @@ def calendar():
 
     current_date = first_day
     while current_date <= last_day:
-        is_holiday = current_date.weekday() >= 5 or current_date in holidays
+        # --- ここを jpholiday 版に書き換える ---
+        # DB上の休日(holidays) と jpholiday をまとめてOR条件に
+        # または「会社独自の休日は不要」なら 'current_date in holidays' を削除
+        is_holiday = current_date.weekday() >= 5 or jpholiday.is_holiday(current_date) or (current_date in holidays)
+
         status = ""
         for ws in work_status:
             if ws['status_date'] == current_date:
@@ -176,14 +181,12 @@ def calendar():
 
 @app.route("/popup")
 def popup():
-    """ポップアップウィンドウを表示"""
     day = request.args.get("day", "不明な日付")
     status = request.args.get("status", "特になし")
     return render_template("popup.html", day=day, status=status)
 
 @app.route("/send_email", methods=["POST"])
 def send_email():
-    """メールを送信して sent.html に移行"""
     subject = request.form.get("subject", "No Subject")
     body = request.form.get("body", "No Content")
     recipient = "masato_o@mac.com"
@@ -207,7 +210,6 @@ def send_email():
 
 @app.route("/manage", methods=["GET", "POST"])
 def manage():
-    """管理画面"""
     db = get_db()
     if request.method == "POST":
         action = request.form.get("action")
