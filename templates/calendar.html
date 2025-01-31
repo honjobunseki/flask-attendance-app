@@ -174,5 +174,15 @@
             {% endfor %}
         </ul>
     </div>
+    <script>
+    function reloadEveryHour() {
+        // 3600000 ms = 1時間ごとにリロード
+        setInterval(() => {
+            location.reload();
+        }, 3600000);
+    }
+    // ページ読み込み後に上記関数を呼び出し
+    window.onload = reloadEveryHour;
+    </script>
 </body>
 </html>
