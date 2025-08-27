@@ -75,19 +75,32 @@ def calendar():
                 )
                 db.commit()
                 flash("伝言が保存されました")
-
+                
                 # 「昌人へ」の伝言を追加した場合のみ、メールを送信する
                 if direction == "昌人へ":
+                    from email.header import Header
+                    from email.utils import formatdate
+
                     recipient = "masato_o@mac.com"
-                    subject = "新しい伝言が追加されました"
-                    body = ""
+                    ts = datetime.datetime.now().strftime("%Y/%m/%d %H:%M")
+
+                    subject = f"【伝言】{(name or '（名無し）')} → 昌人へ（{ts}）"
+                    body = (
+                        "以下の伝言が追加されました。\n\n"
+                        f"[宛先] 昌人へ\n"
+                        f"[差出人] {name or '（名無し）'}\n"
+                        f"[日時] {ts}\n\n"
+                        "--- メッセージ ---\n"
+                        f"{message}\n"
+                    )
 
                     try:
                         msg = MIMEMultipart()
                         msg["From"] = SMTP_EMAIL
                         msg["To"] = recipient
-                        msg["Subject"] = subject
-                        msg.attach(MIMEText(body, "plain"))
+                        msg["Date"] = formatdate(localtime=True)
+                        msg["Subject"] = str(Header(subject, "utf-8"))
+                        msg.attach(MIMEText(body, "plain", "utf-8"))  # ★ 本文にメッセージを入れる
 
                         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
                             server.starttls()
@@ -261,5 +274,6 @@ def manage():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
