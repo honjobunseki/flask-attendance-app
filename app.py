@@ -126,7 +126,11 @@ def calendar():
             cur.execute("SELECT status_date, status_type, time FROM work_status;")
             work_status = [dict(row) for row in cur.fetchall()]
 
-            cur.execute("SELECT direction, message, name, created_at FROM messages ORDER BY created_at DESC;")
+            cur.execute("""
+                SELECT id, direction, message, name, created_at
+                FROM messages
+                ORDER BY created_at DESC, id DESC;
+            """)
             messages = [dict(row) for row in cur.fetchall()]
 
         # 最新の「昌人より」と「昌人へ」の伝言にフラグを付加
@@ -224,6 +228,20 @@ def send_email():
         logger.error(f"Error sending email: {e}")
         return render_template("sent.html", message=f"送信中にエラーが発生しました: {e}")
 
+@app.route("/messages/<int:message_id>/delete", methods=["POST"])
+def delete_message(message_id):
+    db = get_db()
+    try:
+        with db.cursor() as cur:
+            cur.execute("DELETE FROM messages WHERE id = %s;", (message_id,))
+        db.commit()
+        flash("伝言を削除しました")
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error deleting message {message_id}: {e}")
+        flash("削除中にエラーが発生しました")
+    return redirect(url_for("calendar"))
+
 @app.route("/manage", methods=["GET", "POST"])
 def manage():
     db = get_db()
@@ -276,6 +294,7 @@ def manage():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
