@@ -175,11 +175,19 @@
         <ul>
             {% for message in messages %}
                 <li class="{% if message.is_new %}new-message{% endif %}">
-                    {% if message.is_new %}
-                        <img src="/static/image/imagenew.gif" alt="NEW" width="20">
-                    {% endif %}
-                    <strong>{{ message.direction }}:</strong> {{ message.message }}
-                    <em>({{ message.created_at.strftime('%Y/%m/%d') }})</em>
+                    <details>
+                        <summary>
+                            {% if message.is_new %}
+                                <img src="/static/image/imagenew.gif" alt="NEW" width="20">
+                            {% endif %}
+                            <strong>{{ message.direction }}</strong>
+                            <em>（{{ message.created_at.strftime('%Y/%m/%d') }}）</em>
+                            <span style="margin-left:6px; color:#666; font-size:12px;">クリックで内容を表示</span>
+                        </summary>
+                        <div class="msg-body">
+                            {{ message.message | e | replace('\r\n','\n') | replace('\r','\n') | replace('\n','<br>') | safe }}
+                        </div>
+                    </details>
                 </li>
             {% endfor %}
         </ul>
