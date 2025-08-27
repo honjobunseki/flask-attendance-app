@@ -66,11 +66,12 @@ def calendar():
     if request.method == "POST" and "message" in request.form:
         direction = request.form.get("direction")
         message = request.form.get("message")
+        name = request.form.get("name")
         try:
             with db.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO messages (direction, message, created_at) VALUES (%s, %s, %s);",
-                    (direction, message, datetime.datetime.now())
+                    "INSERT INTO messages (direction, message, name, created_at) VALUES (%s, %s, %s);",
+                    (direction, message, name, datetime.datetime.now())
                 )
                 db.commit()
                 flash("伝言が保存されました")
@@ -110,7 +111,7 @@ def calendar():
             cur.execute("SELECT status_date, status_type, time FROM work_status;")
             work_status = [dict(row) for row in cur.fetchall()]
 
-            cur.execute("SELECT direction, message, created_at FROM messages ORDER BY created_at DESC;")
+            cur.execute("SELECT direction, message, name, created_at FROM messages ORDER BY created_at DESC;")
             messages = [dict(row) for row in cur.fetchall()]
 
         # 最新の「昌人より」と「昌人へ」の伝言にフラグを付加
@@ -260,3 +261,4 @@ def manage():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
