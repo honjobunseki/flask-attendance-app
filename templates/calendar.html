@@ -189,25 +189,60 @@
             <button type="submit">更新</button>
         </form>
         <h3>伝言一覧</h3>
-        <ul>
-            {% for message in messages %}
-                <li class="{% if message.is_new %}new-message{% endif %}">
-                    <details>
-                        <summary>
-                            {% if message.is_new %}
-                                <img src="/static/image/imagenew.gif" alt="NEW" width="20">
-                            {% endif %}
-                            <strong>{{ message.direction }}</strong>
-                            <em>（{{ message.created_at.strftime('%Y/%m/%d') }}）</em>
-                            <span style="margin-left:6px; color:#666; font-size:12px;">クリックで内容を表示</span>
-                        </summary>
-                        <div class="msg-body">
-                            {{ message.message | e | replace('\r\n','\n') | replace('\r','\n') | replace('\n','<br>') | safe }}
-                        </div>
-                    </details>
-                </li>
-            {% endfor %}
-        </ul>
+
+        <!-- ▼ ここから2カラム表示 ▼ -->
+        <div class="message-columns">
+            <div class="column">
+                <h4>昌人より</h4>
+                <ul>
+                    {% for message in messages %}
+                        {% if message.direction == "昌人より" %}
+                            <li class="{% if message.is_new %}new-message{% endif %}">
+                                <details>
+                                    <summary>
+                                        {% if message.is_new %}
+                                            <img src="/static/image/imagenew.gif" alt="NEW" width="20">
+                                        {% endif %}
+                                        <strong>{{ message.direction }}</strong>
+                                        <em>（{{ message.created_at.strftime('%Y/%m/%d') }}）</em>
+                                        <span style="margin-left:6px; color:#666; font-size:12px;">クリックで内容を表示</span>
+                                    </summary>
+                                    <div class="msg-body">
+                                        {{ message.message | e | replace('\r\n','\n') | replace('\r','\n') | replace('\n','<br>') | safe }}
+                                    </div>
+                                </details>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </div>
+
+            <div class="column">
+                <h4>昌人へ</h4>
+                <ul>
+                    {% for message in messages %}
+                        {% if message.direction == "昌人へ" %}
+                            <li class="{% if message.is_new %}new-message{% endif %}">
+                                <details>
+                                    <summary>
+                                        {% if message.is_new %}
+                                            <img src="/static/image/imagenew.gif" alt="NEW" width="20">
+                                        {% endif %}
+                                        <strong>{{ message.direction }}</strong>
+                                        <em>（{{ message.created_at.strftime('%Y/%m/%d') }}）</em>
+                                        <span style="margin-left:6px; color:#666; font-size:12px;">クリックで内容を表示</span>
+                                    </summary>
+                                    <div class="msg-body">
+                                        {{ message.message | e | replace('\r\n','\n') | replace('\r','\n') | replace('\n','<br>') | safe }}
+                                    </div>
+                                </details>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <!-- ▲ ここまで2カラム表示 ▲ -->
     </div>
     <script>
     function reloadEveryHour() {
