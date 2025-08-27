@@ -70,7 +70,7 @@ def calendar():
         try:
             with db.cursor() as cur:
                 cur.execute(
-                    "INSERT INTO messages (direction, message, name, created_at) VALUES (%s, %s, %s);",
+                    "INSERT INTO messages (direction, message, name, created_at) VALUES (%s, %s, %s, %s);",
                     (direction, message, name, datetime.datetime.now())
                 )
                 db.commit()
@@ -261,4 +261,5 @@ def manage():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
