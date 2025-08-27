@@ -101,15 +101,13 @@
         .column {
             flex: 1;           /* 左右で均等幅 */
         }
-        summary {
-            cursor: pointer;
-            user-select: none;
-        }
-        .msg-body {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px dashed #e2e8f0;
-            white-space: pre-wrap;
+        .pill {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 2px 6px;
+            font-size: 12px;
+            background: #eef2f7;
+            border-radius: 6px;
         }
     </style>
     <script>
@@ -207,6 +205,7 @@
                                             <img src="/static/image/imagenew.gif" alt="NEW" width="20">
                                         {% endif %}
                                         <strong>{{ message.direction }}</strong>
+                                        <span class="pill">{{ (message.name or '（名無し）') }}さんへ</span>
                                         <em>（{{ message.created_at.strftime('%Y/%m/%d') }}）</em>
                                         <span style="margin-left:6px; color:#666; font-size:12px;">クリックで内容を表示</span>
                                     </summary>
@@ -232,6 +231,7 @@
                                             <img src="/static/image/imagenew.gif" alt="NEW" width="20">
                                         {% endif %}
                                         <strong>{{ message.direction }}</strong>
+                                        <span class="pill">{{ (message.name or '（名無し）') }}より</span>
                                         <em>（{{ message.created_at.strftime('%Y/%m/%d') }}）</em>
                                         <span style="margin-left:6px; color:#666; font-size:12px;">クリックで内容を表示</span>
                                     </summary>
