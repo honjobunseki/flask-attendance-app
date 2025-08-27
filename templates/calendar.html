@@ -229,7 +229,7 @@
                                         </form>
                                     </summary>
                                     <div class="msg-body">
-                                        {{ message.message | e | replace('\r\n','\n') | replace('\r','\n') | replace('\n','<br>') | safe }}
+                                        {{- message.message | e | replace('\r\n','\n') | replace('\r','\n') | replace('\n','<br>') | safe -}}
                                     </div>
                                 </details>
                             </li>
@@ -262,7 +262,7 @@
                                         </form>
                                     </summary>
                                     <div class="msg-body">
-                                        {{ message.message | e | replace('\r\n','\n') | replace('\r','\n') | replace('\n','<br>') | safe }}
+                                        {{- message.message | e | replace('\r\n','\n') | replace('\r','\n') | replace('\n','<br>') | safe -}}
                                     </div>
                                 </details>
                             </li>
