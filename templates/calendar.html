@@ -109,6 +109,18 @@
             background: #eef2f7;
             border-radius: 6px;
         }
+        .delete-btn{
+          border:none;
+          background:#e53e3e;
+          color:#fff;
+          width:24px;
+          height:24px;
+          border-radius:50%;
+          cursor:pointer;
+          line-height:22px;
+          font-weight:bold;
+        }
+        .delete-btn:hover{ opacity:0.9; }
     </style>
     <script>
         function openPopup(day, status) {
@@ -208,6 +220,13 @@
                                         <span class="pill">{{ (message.name or '（名無し）') }}さんへ</span>
                                         <em>（{{ message.created_at.strftime('%Y/%m/%d') }}）</em>
                                         <span style="margin-left:6px; color:#666; font-size:12px;">クリックで内容を表示</span>
+                                        <!-- ★ 削除ボタン -->
+                                        <form method="POST"
+                                              action="{{ url_for('delete_message', message_id=message.id) }}"
+                                              style="display:inline; float:right; margin-left:8px;"
+                                              onsubmit="return confirm('この伝言を削除しますか？');">
+                                          <button type="submit" class="delete-btn" title="削除">×</button>
+                                        </form>
                                     </summary>
                                     <div class="msg-body">
                                         {{ message.message | e | replace('\r\n','\n') | replace('\r','\n') | replace('\n','<br>') | safe }}
@@ -234,6 +253,13 @@
                                         <span class="pill">{{ (message.name or '（名無し）') }}より</span>
                                         <em>（{{ message.created_at.strftime('%Y/%m/%d') }}）</em>
                                         <span style="margin-left:6px; color:#666; font-size:12px;">クリックで内容を表示</span>
+                                        <!-- ★ 削除ボタン -->
+                                        <form method="POST"
+                                              action="{{ url_for('delete_message', message_id=message.id) }}"
+                                              style="display:inline; float:right; margin-left:8px;"
+                                              onsubmit="return confirm('この伝言を削除しますか？');">
+                                          <button type="submit" class="delete-btn" title="削除">×</button>
+                                        </form>
                                     </summary>
                                     <div class="msg-body">
                                         {{ message.message | e | replace('\r\n','\n') | replace('\r','\n') | replace('\n','<br>') | safe }}
