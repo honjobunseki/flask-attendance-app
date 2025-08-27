@@ -110,7 +110,7 @@ def calendar():
                     except Exception as e:
                         logger.error(f"Error sending notification email: {e}")
 
-        return redirect(url_for("calendar"))
+            return redirect(url_for("calendar"))
 
         except Exception as e:
             db.rollback()
@@ -276,6 +276,7 @@ def manage():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
