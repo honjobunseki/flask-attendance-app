@@ -121,6 +121,17 @@
           font-weight:bold;
         }
         .delete-btn:hover{ opacity:0.9; }
+        .badge-working{
+         display:inline-block;
+         margin:4px 0 6px;
+         padding:2px 8px;
+         font-size:0.9rem;
+         border-radius:6px;
+         background:#e8fff1;
+         border:1px solid #2ecc71;
+         color:#1b8f4b;
+         font-weight:bold;
+        }
     </style>
     <script>
         function openPopup(day, status) {
@@ -163,6 +174,10 @@
                                     <div>{{ day }}</div>
                                     {% if status %}
                                         <div>{{ status }}</div>
+                                    {% endif %}
+
+                                    {% if today_working %}
+                                        <div class="badge-working">出勤中</div>
                                     {% endif %}
                                     <button 
                                         class="contact-btn" 
