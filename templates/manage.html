@@ -7,6 +7,18 @@
 <body>
     <h1>管理ページ</h1>
 
+    <form method="post" action="/manage" style="margin:12px 0;">
+      <input type="hidden" name="action" value="add_status">
+      <label>日付：
+        <input type="date" name="date" value="{{ today.isoformat() }}" required>
+      </label>
+      <label style="margin-left:8px;">時刻（任意）：
+        <input type="time" name="time" placeholder="09:00">
+      </label>
+      <input type="hidden" name="status_type" value="出勤中">
+      <button type="submit" style="margin-left:8px;">「出勤中」を追加</button>
+    </form>
+    
     <!-- ステータス追加フォーム -->
     <h2>ステータスを追加する</h2>
     <form method="POST" action="/manage">
