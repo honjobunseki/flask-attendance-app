@@ -293,11 +293,12 @@ def manage():
         cur.execute("SELECT * FROM work_status;")
         work_status = cur.fetchall()
 
-    return render_template("manage.html", holidays=holidays, work_status=work_status)
+    return render_template("manage.html", holidays=holidays, work_status=work_status,today=datetime.date.today())
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
