@@ -175,6 +175,8 @@ def calendar():
                     status = "外出中"
                 elif ws['status_type'] == "休憩中":
                     status = "休憩中"
+                elif ws['status_type'] == "出勤中":
+                    status = "出勤中"
         week.append((current_date.day, status, is_holiday))
         if len(week) == 7:
             month_days.append(week)
@@ -187,6 +189,7 @@ def calendar():
         month_days.append(week)
 
     today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
+    today_working = any(ws['status_date'] == today and ws['status_type'] == "出勤中" for ws in work_status)
 
     return render_template(
         "calendar.html",
@@ -195,6 +198,7 @@ def calendar():
         today=today.day,
         month_days=month_days,
         today_status=today_status,
+        today_working=today_working,
         messages=messages,
         gif_path="/static/image/imagenew.gif"
     )
@@ -294,6 +298,7 @@ def manage():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
