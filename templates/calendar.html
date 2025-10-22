@@ -169,18 +169,41 @@
                                 <td class="holiday">
                                     <div>{{ day }}</div>
                                 </td>
-                               {% elif day == today %}
+                                {% elif day == today %}
                                 <td class="today">
                                     <div>{{ day }}</div>
                                     {% if status %}
                                         <div>{{ status }}</div>
                                     {% endif %}
 
+                                    {# ▼ 出退勤の時刻表示（本日） #}
+                                    {% set rec = attendance_by_day.get(day) %}
+                                    {% if rec %}
+                                        <div style="margin-top:6px; font-size:0.9rem;">
+                                            {% if rec.clock_in_at %}
+                                                <div>出勤: {{ rec.clock_in_at }}</div>
+                                            {% endif %}
+                                            {% if rec.clock_out_at %}
+                                                <div>退勤: {{ rec.clock_out_at }}</div>
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
+
                                     {% if today_working %}
                                         <div class="badge-working">出勤中</div>
                                     {% endif %}
+
+                                    {# ▼ 本日のみ：打刻ボタン #}
+                                    <form action="/api/clock-in" method="post" style="display:inline-block; width:auto; margin-top:6px;">
+                                        <button type="submit" class="contact-btn" style="width:auto;">出勤</button>
+                                    </form>
+                                    <form action="/api/clock-out" method="post" style="display:inline-block; width:auto; margin-top:6px; margin-left:4px;">
+                                        <button type="submit" class="contact-btn" style="width:auto; background:#28a745;">退勤</button>
+                                    </form>
+
                                     <button 
                                         class="contact-btn" 
+                                        style="display:block; width:100%; margin-top:8px;"
                                         onclick="openPopup('{{ year }}年{{ month }}月{{ day }}日', '{{ status }}')">
                                         連絡する
                                     </button>
@@ -190,6 +213,19 @@
                                     <div>{{ day }}</div>
                                     {% if status %}
                                         <div>{{ status }}</div>
+                                    {% endif %}
+
+                                    {# ▼ 過去/未来の日の出退勤表示 #}
+                                    {% set rec = attendance_by_day.get(day) %}
+                                    {% if rec %}
+                                        <div style="margin-top:6px; font-size:0.9rem;">
+                                            {% if rec.clock_in_at %}
+                                                <div>出勤: {{ rec.clock_in_at }}</div>
+                                            {% endif %}
+                                            {% if rec.clock_out_at %}
+                                                <div>退勤: {{ rec.clock_out_at }}</div>
+                                            {% endif %}
+                                        </div>
                                     {% endif %}
                                 </td>
                             {% endif %}
