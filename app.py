@@ -1,12 +1,13 @@
 import os
 import datetime
 import logging
-from flask import Flask, render_template, request, flash, redirect, url_for, g
+from flask import Flask, render_template, request, flash, redirect, url_for, g, jsonify
 import psycopg2
 from psycopg2.extras import DictCursor
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import smtplib
+import pytz
 
 # --- ここを追加 ---
 import jpholiday
@@ -53,6 +54,7 @@ def close_db(error):
 def calendar():
     """カレンダーと伝言板を表示"""
     today = datetime.date.today()
+    today_working = False
     year, month = today.year, today.month
     first_day = datetime.date(year, month, 1)
     last_day = (datetime.date(year, month + 1, 1) - datetime.timedelta(days=1)) if month < 12 else datetime.date(year, 12, 31)
@@ -73,50 +75,89 @@ def calendar():
                     "INSERT INTO messages (direction, message, name, created_at) VALUES (%s, %s, %s, %s);",
                     (direction, message, name, datetime.datetime.now())
                 )
-                db.commit()
-                flash("伝言が保存されました")
-                
-                # 「昌人へ」の伝言を追加した場合のみ、メールを送信する
-                if direction == "昌人へ":
-                    from email.header import Header
-                    from email.utils import formatdate
-
-                    recipient = "masato_o@mac.com"
-                    ts = datetime.datetime.now().strftime("%Y/%m/%d %H:%M")
-
-                    subject = f"【伝言】{(name or '（名無し）')} → 昌人へ（{ts}）"
-                    body = (
-                        "以下の伝言が追加されました。\n\n"
-                        f"[宛先] 昌人へ\n"
-                        f"[差出人] {name or '（名無し）'}\n"
-                        f"[日時] {ts}\n\n"
-                        "--- メッセージ ---\n"
-                        f"{message}\n"
-                    )
-
-                    try:
-                        msg = MIMEMultipart()
-                        msg["From"] = SMTP_EMAIL
-                        msg["To"] = recipient
-                        msg["Date"] = formatdate(localtime=True)
-                        msg["Subject"] = str(Header(subject, "utf-8"))
-                        msg.attach(MIMEText(body, "plain", "utf-8"))  # ★ 本文にメッセージを入れる
-
-                        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-                            server.starttls()
-                            server.login(SMTP_EMAIL, SMTP_PASSWORD)
-                            server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
-                        logger.info("Email notification sent for '昌人へ' message.")
-                    except Exception as e:
-                        logger.error(f"Error sending notification email: {e}")
-
-            return redirect(url_for("calendar"))
-
+            db.commit()
+            flash("伝言が保存されました")
+    
+            # 「昌人へ」のときだけメール
+            if direction == "昌人へ":
+                from email.header import Header
+                from email.utils import formatdate
+    
+                recipient = "masato_o@mac.com"
+                ts = datetime.datetime.now().strftime("%Y/%m/%d %H:%M")
+    
+                subject = f"【伝言】{(name or '（名無し）')} → 昌人へ（{ts}）"
+                body = (
+                    "以下の伝言が追加されました。\n\n"
+                    f"[宛先] 昌人へ\n"
+                    f"[差出人] {name or '（名無し）'}\n"
+                    f"[日時] {ts}\n\n"
+                    "--- メッセージ ---\n"
+                    f"{message}\n"
+                )
+    
+                try:
+                    msg = MIMEMultipart()
+                    msg["From"] = SMTP_EMAIL
+                    msg["To"] = recipient
+                    msg["Date"] = formatdate(localtime=True)
+                    msg["Subject"] = str(Header(subject, "utf-8"))
+                    msg.attach(MIMEText(body, "plain", "utf-8"))
+    
+                    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+                        server.starttls()
+                        server.login(SMTP_EMAIL, SMTP_PASSWORD)
+                        server.sendmail(SMTP_EMAIL, recipient, msg.as_string())
+                    logger.info("Email notification sent for '昌人へ' message.")
+                except Exception as e:
+                    logger.error(f"Error sending notification email: {e}")
+            # ここでリダイレクトするなら↓を有効化
+            # return redirect(url_for("calendar"))
+    
         except Exception as e:
             db.rollback()
             logger.error(f"Error saving message: {e}")
             flash("伝言の保存中にエラーが発生しました")
+            # return redirect(url_for("calendar"))
 
+    # === ここから追加：attendance_by_day と today_working を作る ===
+    attendance_by_day = {}  # { 日(1..31): {"clock_in_at":"HH:MM", "clock_out_at":"HH:MM"} }
+
+    try:
+        with db.cursor(cursor_factory=DictCursor) as cur:
+            # 当月の出退勤を取得して日ごとに整形
+            cur.execute("""
+                SELECT work_date, clock_in_at, clock_out_at
+                  FROM attendance_logs
+                 WHERE work_date BETWEEN %s AND %s
+                 ORDER BY work_date;
+            """, (first_day, last_day))
+            for r in cur.fetchall():
+                d = int(r["work_date"].day)
+                rec = {}
+                if r["clock_in_at"]:
+                    rec["clock_in_at"] = r["clock_in_at"].astimezone(JST).strftime("%H:%M")
+                if r["clock_out_at"]:
+                    rec["clock_out_at"] = r["clock_out_at"].astimezone(JST).strftime("%H:%M")
+                attendance_by_day[d] = rec
+
+            # 今日の「出勤中」＝出勤済み＆退勤未済（attendance_logsベース）
+            cur.execute("""
+                SELECT clock_in_at, clock_out_at
+                  FROM attendance_logs
+                 WHERE work_date=%s
+                 LIMIT 1;
+            """, (today,))
+            row = cur.fetchone()
+            # work_statusの「出勤中」も併用するなら OR 条件に
+            today_working_att = bool(row and row["clock_in_at"] and not row["clock_out_at"])
+            # 既存の today_working とマージ（どちらかがTrueなら出勤中）
+            today_working = today_working or today_working_att
+    except Exception as e:
+        logger.error(f"Error building attendance_by_day: {e}")
+        # フォールバック
+        attendance_by_day = attendance_by_day or {}
+    # === ここまで追加 ===
     # データを取得
     try:
         with db.cursor(cursor_factory=DictCursor) as cur:
@@ -187,8 +228,11 @@ def calendar():
         month_days.append(week)
 
     today_status = next((ws['status_type'] for ws in work_status if ws['status_date'] == today), "")
-    today_working = any(ws['status_date'] == today and ws['status_type'] == "出勤中" for ws in work_status)
-
+    today_working = today_working or any(
+        ws['status_date'] == today and ws['status_type'] == "出勤中"
+        for ws in work_status
+    )
+    
     return render_template(
         "calendar.html",
         year=year,
@@ -197,6 +241,7 @@ def calendar():
         month_days=month_days,
         today_status=today_status,
         today_working=today_working,
+        attendance_by_day=attendance_by_day,
         messages=messages,
         gif_path="/static/image/imagenew.gif"
     )
@@ -245,10 +290,6 @@ def delete_message(message_id):
     return redirect(url_for("calendar"))
 
 # === ここから追記（Flask app.py） =========================================
-import datetime
-import pytz
-from flask import request, redirect, url_for, jsonify, flash
-
 JST = pytz.timezone("Asia/Tokyo")
 
 def now_jst():
@@ -258,46 +299,42 @@ def today_jst_date():
     return now_jst().date()
 
 def upsert_attendance_clock_in(db, dt_now):
-    """今日のレコードを作り、clock_in_at が空なら打刻する"""
     work_date = dt_now.date()
+    dt_utc = dt_now.astimezone(datetime.timezone.utc)
     with db.cursor(cursor_factory=DictCursor) as cur:
-        # 既存レコード有無
         cur.execute("SELECT id, clock_in_at FROM attendance_logs WHERE work_date=%s;", (work_date,))
         row = cur.fetchone()
         if row is None:
             cur.execute(
                 "INSERT INTO attendance_logs (work_date, clock_in_at) VALUES (%s, %s);",
-                (work_date, dt_now,)
+                (work_date, dt_utc)
             )
-        else:
-            if row["clock_in_at"] is None:
-                cur.execute(
-                    "UPDATE attendance_logs SET clock_in_at=%s WHERE id=%s;",
-                    (dt_now, row["id"])
-                )
+        elif row["clock_in_at"] is None:
+            cur.execute(
+                "UPDATE attendance_logs SET clock_in_at=%s WHERE id=%s;",
+                (dt_utc, row["id"])
+            )
     db.commit()
 
 def upsert_attendance_clock_out(db, dt_now, force=False):
-    """今日のレコードに退勤打刻。clock_in_at より後であることを基本チェック。force=True で上書き可。"""
     work_date = dt_now.date()
+    dt_utc = dt_now.astimezone(datetime.timezone.utc)
     with db.cursor(cursor_factory=DictCursor) as cur:
         cur.execute("SELECT id, clock_in_at, clock_out_at FROM attendance_logs WHERE work_date=%s;", (work_date,))
         row = cur.fetchone()
         if row is None:
-            # 先に出勤していない場合でも、記録を作っておく（業務上は注意喚起）
             cur.execute(
                 "INSERT INTO attendance_logs (work_date, clock_out_at) VALUES (%s, %s);",
-                (work_date, dt_now,)
+                (work_date, dt_utc)
             )
         else:
             if row["clock_out_at"] is None or force:
-                # 整合チェック（clock_in_at より後）
                 if row["clock_in_at"] is not None and not force:
-                    if dt_now <= row["clock_in_at"]:
+                    if dt_utc <= row["clock_in_at"]:
                         raise ValueError("退勤時刻が出勤時刻以前です。/force で上書き可能。")
                 cur.execute(
                     "UPDATE attendance_logs SET clock_out_at=%s WHERE id=%s;",
-                    (dt_now, row["id"])
+                    (dt_utc, row["id"])
                 )
     db.commit()
 
@@ -330,7 +367,7 @@ def api_clock_in():
             return jsonify({"ok": False, "error": str(e)}), 400
         flash(f"出勤打刻エラー: {e}")
     # カレンダーに戻る
-    return redirect(url_for("calendar_view"))
+    return redirect(url_for("calendar"))
 
 @app.route("/api/clock-out", methods=["POST"])
 def api_clock_out():
@@ -346,35 +383,7 @@ def api_clock_out():
         if request.headers.get("X-Requested-With") == "XMLHttpRequest":
             return jsonify({"ok": False, "error": str(e)}), 400
         flash(f"退勤打刻エラー: {e}")
-    return redirect(url_for("calendar_view"))
-
-# 既存のカレンダー画面のビューファンクション内で、日付範囲に attendance を合成して渡す。
-# 例：@app.route("/") def calendar_view(): の中を以下のように一部追加
-@app.route("/")
-def calendar_view():
-    db = get_db()
-
-    # ここは、あなたの既存ロジックで「今月の表示範囲」を計算しているはず。
-    # 例として、当月の1日〜末日を作っています。既存の範囲計算をお使いください。
-    today = today_jst_date()
-    first = today.replace(day=1)
-    # 次月初の前日 = 当月末
-    next_month = (first.replace(day=28) + datetime.timedelta(days=4)).replace(day=1)
-    last = next_month - datetime.timedelta(days=1)
-
-    attendance_map = get_attendance_map(db, first, last)
-
-    # 既存のレンダリングに attendance_map を追加で渡す
-    # （あなたの calendar.html で利用できるようにする）
-    return render_template(
-        "calendar.html",
-        today=today,
-        first_day=first,
-        last_day=last,
-        attendance_map=attendance_map,
-        # 既存で渡している他の値もそのまま……
-    )
-# === ここまで追記 ============================================================
+    return redirect(url_for("calendar"))
 
 @app.route("/manage", methods=["GET", "POST"])
 def manage():
@@ -428,13 +437,3 @@ def manage():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-
-
-
-
-
-
-
-
-
-
