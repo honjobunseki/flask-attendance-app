@@ -244,6 +244,138 @@ def delete_message(message_id):
         flash("削除中にエラーが発生しました")
     return redirect(url_for("calendar"))
 
+# === ここから追記（Flask app.py） =========================================
+import datetime
+import pytz
+from flask import request, redirect, url_for, jsonify, flash
+
+JST = pytz.timezone("Asia/Tokyo")
+
+def now_jst():
+    return datetime.datetime.now(JST)
+
+def today_jst_date():
+    return now_jst().date()
+
+def upsert_attendance_clock_in(db, dt_now):
+    """今日のレコードを作り、clock_in_at が空なら打刻する"""
+    work_date = dt_now.date()
+    with db.cursor(cursor_factory=DictCursor) as cur:
+        # 既存レコード有無
+        cur.execute("SELECT id, clock_in_at FROM attendance_logs WHERE work_date=%s;", (work_date,))
+        row = cur.fetchone()
+        if row is None:
+            cur.execute(
+                "INSERT INTO attendance_logs (work_date, clock_in_at) VALUES (%s, %s);",
+                (work_date, dt_now,)
+            )
+        else:
+            if row["clock_in_at"] is None:
+                cur.execute(
+                    "UPDATE attendance_logs SET clock_in_at=%s WHERE id=%s;",
+                    (dt_now, row["id"])
+                )
+    db.commit()
+
+def upsert_attendance_clock_out(db, dt_now, force=False):
+    """今日のレコードに退勤打刻。clock_in_at より後であることを基本チェック。force=True で上書き可。"""
+    work_date = dt_now.date()
+    with db.cursor(cursor_factory=DictCursor) as cur:
+        cur.execute("SELECT id, clock_in_at, clock_out_at FROM attendance_logs WHERE work_date=%s;", (work_date,))
+        row = cur.fetchone()
+        if row is None:
+            # 先に出勤していない場合でも、記録を作っておく（業務上は注意喚起）
+            cur.execute(
+                "INSERT INTO attendance_logs (work_date, clock_out_at) VALUES (%s, %s);",
+                (work_date, dt_now,)
+            )
+        else:
+            if row["clock_out_at"] is None or force:
+                # 整合チェック（clock_in_at より後）
+                if row["clock_in_at"] is not None and not force:
+                    if dt_now <= row["clock_in_at"]:
+                        raise ValueError("退勤時刻が出勤時刻以前です。/force で上書き可能。")
+                cur.execute(
+                    "UPDATE attendance_logs SET clock_out_at=%s WHERE id=%s;",
+                    (dt_now, row["id"])
+                )
+    db.commit()
+
+def get_attendance_map(db, date_from, date_to):
+    """カレンダー表示用：範囲の attendance を {date: row} の辞書で返す"""
+    with db.cursor(cursor_factory=DictCursor) as cur:
+        cur.execute("""
+            SELECT work_date, clock_in_at, clock_out_at, notes
+              FROM attendance_logs
+             WHERE work_date BETWEEN %s AND %s
+             ORDER BY work_date;
+        """, (date_from, date_to))
+        rows = cur.fetchall()
+    m = {}
+    for r in rows:
+        m[r["work_date"]] = r
+    return m
+
+@app.route("/api/clock-in", methods=["POST"])
+def api_clock_in():
+    db = get_db()
+    try:
+        upsert_attendance_clock_in(db, now_jst())
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"ok": True})
+        flash("出勤を打刻しました。")
+    except Exception as e:
+        db.rollback()
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"ok": False, "error": str(e)}), 400
+        flash(f"出勤打刻エラー: {e}")
+    # カレンダーに戻る
+    return redirect(url_for("calendar_view"))
+
+@app.route("/api/clock-out", methods=["POST"])
+def api_clock_out():
+    db = get_db()
+    force = request.args.get("force") == "1"
+    try:
+        upsert_attendance_clock_out(db, now_jst(), force=force)
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"ok": True})
+        flash("退勤を打刻しました。")
+    except Exception as e:
+        db.rollback()
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return jsonify({"ok": False, "error": str(e)}), 400
+        flash(f"退勤打刻エラー: {e}")
+    return redirect(url_for("calendar_view"))
+
+# 既存のカレンダー画面のビューファンクション内で、日付範囲に attendance を合成して渡す。
+# 例：@app.route("/") def calendar_view(): の中を以下のように一部追加
+@app.route("/")
+def calendar_view():
+    db = get_db()
+
+    # ここは、あなたの既存ロジックで「今月の表示範囲」を計算しているはず。
+    # 例として、当月の1日〜末日を作っています。既存の範囲計算をお使いください。
+    today = today_jst_date()
+    first = today.replace(day=1)
+    # 次月初の前日 = 当月末
+    next_month = (first.replace(day=28) + datetime.timedelta(days=4)).replace(day=1)
+    last = next_month - datetime.timedelta(days=1)
+
+    attendance_map = get_attendance_map(db, first, last)
+
+    # 既存のレンダリングに attendance_map を追加で渡す
+    # （あなたの calendar.html で利用できるようにする）
+    return render_template(
+        "calendar.html",
+        today=today,
+        first_day=first,
+        last_day=last,
+        attendance_map=attendance_map,
+        # 既存で渡している他の値もそのまま……
+    )
+# === ここまで追記 ============================================================
+
 @app.route("/manage", methods=["GET", "POST"])
 def manage():
     db = get_db()
@@ -296,6 +428,7 @@ def manage():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
